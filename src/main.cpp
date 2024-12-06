@@ -44,7 +44,7 @@ enum MODESTATE{NORM, NORMPLUSRGB};
 
 unsigned long lastTimeColorSwitched;
 
-byte hue_values[] = {0, 32, 48, 80, 96, 128, 144, 160, 192, 224, 0};
+byte hue_values[] = {0, 24, 48, 80, 96, 128, 144, 160, 192, 224, 0};
 byte brightness_values[] = {0, 80, 160, 250};
 
 
@@ -93,9 +93,19 @@ void ledLoop() {
 
   if (curHue == 10) curSaturation = 0;
   else curSaturation = 255;
-  for (int i=NUM_LEDS;i<NUM_LEDS;i++) {
-    leds[i].setHSV(hue_values[curHue], curSaturation, brightness_values[curPowerState]);
+  for (int i=0;i<NUM_LEDS/2;i++) {
+    leds[i] = CHSV(0, 0, brightness_values[curPowerState]);
   }
+  if (curModeState == NORMPLUSRGB) {
+    for (int i=NUM_LEDS/2;i<NUM_LEDS;i++) {
+      leds[i] = CHSV(hue_values[curHue], curSaturation, brightness_values[curPowerState]);
+    }
+  } else {
+    for (int i=NUM_LEDS/2;i<NUM_LEDS;i++) {
+      leds[i] = CHSV(0, 0, 0);
+    }
+  }
+  
   FastLED.show();
 
 }
