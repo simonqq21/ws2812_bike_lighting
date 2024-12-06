@@ -65,13 +65,19 @@ void InterruptButton::loop() {
                 // Serial.println(" times.");
                 switch (_numClicks) {
                     case 1: 
-                        _1ShortPressFunc();
-                        break;
+                        if (_1ShortPressFunc != NULL) {
+                            _1ShortPressFunc();
+                            break;
+                        }             
                     case 2: 
+                    if (_2ShortPressFunc != NULL) {
                         _2ShortPressFunc();
                         break;
+                    }
                     default: 
+                    if (_3ShortPressFunc != NULL) {
                         _3ShortPressFunc();
+                    }
                 }
                 _numClicks = 0; 
             }
@@ -83,13 +89,19 @@ void InterruptButton::loop() {
                 // Serial.println(" times.");
                 switch (_numClicks) {
                     case 1: 
-                        _1LongPressFunc();
-                        break;
+                        if (_1LongPressFunc != NULL) {
+                            _1LongPressFunc();
+                            break;
+                        }
                     case 2: 
-                        _2LongPressFunc();
-                        break;
+                        if (_2LongPressFunc != NULL) {
+                            _2LongPressFunc();
+                            break;   
+                        }
                     default: 
-                        _3LongPressFunc();
+                        if (_3LongPressFunc != NULL) {
+                            _3LongPressFunc();
+                        }
                 }
                 _numClicks = 0; 
             }
