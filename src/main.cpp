@@ -106,16 +106,7 @@ void ledLoop() {
   // }
   
 
-  // 1 Hz, single 30% DC flash
-  if (millis() - flashCycleTimer >= 100) {
-    flashCycleTimer = millis();
-    if (ctr1 < 3) curBrightness = brightness_values[curPowerState];
-    else curBrightness = 0;
-    ctr1++;
-    ctr1 = ctr1 > 9? 0:ctr1;
-  }
-
-  // 1 Hz, double 30% DC flash
+  // // 1 Hz, single 30% DC flash
   // if (millis() - flashCycleTimer >= 100) {
   //   flashCycleTimer = millis();
   //   if (ctr1 < 3) curBrightness = brightness_values[curPowerState];
@@ -123,6 +114,15 @@ void ledLoop() {
   //   ctr1++;
   //   ctr1 = ctr1 > 9? 0:ctr1;
   // }
+
+  // 1 Hz, double 15% DC flash
+  if (millis() - flashCycleTimer >= 50) {
+    flashCycleTimer = millis();
+    if (ctr1 < 3 || ctr1 > 5 && ctr1 < 9) curBrightness = brightness_values[curPowerState];
+    else curBrightness = 0;
+    ctr1++;
+    ctr1 = ctr1 > 19? 0:ctr1;
+  }
 
   for (int i=NUM_LEDS/2;i<NUM_LEDS;i++) {
     leds[i] = CHSV(hue_values[curHue], curSaturation, curBrightness);
