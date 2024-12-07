@@ -85,7 +85,7 @@ void btn1_1longpress_func() {
   Serial.println(curHue);
 }
 
-unsigned int flashCycleTimer;
+unsigned long flashCycleTimer;
 int ctr1;
 byte curBrightness;
 void ledLoop() {
@@ -115,7 +115,15 @@ void ledLoop() {
     ctr1 = ctr1 > 9? 0:ctr1;
   }
 
-  
+  // 1 Hz, double 30% DC flash
+  // if (millis() - flashCycleTimer >= 100) {
+  //   flashCycleTimer = millis();
+  //   if (ctr1 < 3) curBrightness = brightness_values[curPowerState];
+  //   else curBrightness = 0;
+  //   ctr1++;
+  //   ctr1 = ctr1 > 9? 0:ctr1;
+  // }
+
   for (int i=NUM_LEDS/2;i<NUM_LEDS;i++) {
     leds[i] = CHSV(hue_values[curHue], curSaturation, curBrightness);
   }
