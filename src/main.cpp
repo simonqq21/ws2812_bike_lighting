@@ -86,7 +86,7 @@ void btn1_1longpress_func() {
 }
 
 unsigned long flashCycleTimer;
-int ctr1;
+int ctr1, ctr2;
 byte curBrightness;
 void ledLoop() {
   if (curHue == 10) curSaturation = 0;
@@ -115,14 +115,56 @@ void ledLoop() {
   //   ctr1 = ctr1 > 9? 0:ctr1;
   // }
 
-  // 1 Hz, double 15% DC flash
-  if (millis() - flashCycleTimer >= 50) {
+  // // 1 Hz, double 15% DC flash
+  // if (millis() - flashCycleTimer >= 50) {
+  //   flashCycleTimer = millis();
+  //   if (ctr1 / 3 == 0 || ctr1 / 3 == 2) curBrightness = brightness_values[curPowerState];
+  //   else curBrightness = 0;
+    // ctr1++;
+    // ctr1 = ctr1 > 19? 0:ctr1;
+  // }
+
+  // 1 Hz fade; 400 mS rise, 400 mS fall, 200 mS off
+  // 5 ms fading steps
+  // 200 total steps; 0,80,160,200
+  if (millis() - flashCycleTimer >= 5) {
     flashCycleTimer = millis();
-    if (ctr1 < 3 || ctr1 > 5 && ctr1 < 9) curBrightness = brightness_values[curPowerState];
-    else curBrightness = 0;
+    if (ctr1 < 80) {
+      curBrightness = sin8((ctr1-0)*64/80) * brightness_values[curPowerState] / 255;
+    } 
+    // else if (ctr1 >= 80 && ctr1 < 100) {
+    //   curBrightness = brightness_values[curPowerState];
+    // }
+    else if (ctr1 >= 80 && ctr1 < 160) {
+      curBrightness = sin8((ctr1-80)*64/80+64) * brightness_values[curPowerState] / 255;
+    }
+    else if (ctr1 >= 160 && ctr1 < 200) {
+      curBrightness = 0;
+    }
     ctr1++;
-    ctr1 = ctr1 > 19? 0:ctr1;
+    ctr1 = ctr1 > 199? 0:ctr1;
   }
+
+  // 1 Hz double fade; 400 mS rise, 400 mS fall, 200 mS off
+  // 5 ms fading steps
+  // 200 total steps; 0,80,160,200
+  // if (millis() - flashCycleTimer >= 5) {
+  //   flashCycleTimer = millis();
+  //   if (ctr1 < 80) {
+  //     curBrightness = sin8((ctr1-0)*64/80) * brightness_values[curPowerState] / 255;
+  //   } 
+  //   // else if (ctr1 >= 80 && ctr1 < 100) {
+  //   //   curBrightness = brightness_values[curPowerState];
+  //   // }
+  //   else if (ctr1 >= 80 && ctr1 < 160) {
+  //     curBrightness = sin8((ctr1-80)*64/80+64) * brightness_values[curPowerState] / 255;
+  //   }
+  //   else if (ctr1 >= 160 && ctr1 < 200) {
+  //     curBrightness = 0;
+  //   }
+  //   ctr1++;
+  //   ctr1 = ctr1 > 199? 0:ctr1;
+  // }
 
   for (int i=NUM_LEDS/2;i<NUM_LEDS;i++) {
     leds[i] = CHSV(hue_values[curHue], curSaturation, curBrightness);
