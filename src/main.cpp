@@ -22,6 +22,14 @@
  * double click - cycle between driving lights only and driving lights + RGB 
  * single long press - cycle through preset RGB solid colors
  * 
+ * v2:
+ * implement the ff. LED effects:
+ *  constant
+ *  single flash
+ *  double flash
+ *  fade up and down
+ *  double fade up and down
+ *  
  */
 
 const int LED_PIN = 4;
@@ -33,7 +41,6 @@ const int BRIGHTNESS = 250;
 #define COLOR_ORDER GRB
 #define LED_TYPE WS2812B
 CRGB leds[NUM_LEDS];
-CRGB leds2[NUM_LEDS];
 #define UPDATES_PER_SECOND 100
 
 CRGBPalette16 curPalette;
@@ -78,34 +85,40 @@ void btn1_1longpress_func() {
   Serial.println(curHue);
 }
 
+unsigned int flashCycleTimer;
+int ctr1;
+byte curBrightness;
 void ledLoop() {
-  // if (millis() - lastTimeColorSwitched > 1000) {
-  //   lastTimeColorSwitched = millis();
-  //   curPowerState = 1;
-  //   if (curHue == 10) curSaturation = 0;
-  //   else curSaturation = 255;
-  //   for (int i=0;i<NUM_LEDS;i++) {
-  //     leds[i].setHSV(hue_values[curHue], curSaturation, brightness_values[curPowerState]);
-  //   }
-  //   curHue++;
-  //   if (curHue > 10) curHue = 0;
-  // }
-
   if (curHue == 10) curSaturation = 0;
   else curSaturation = 255;
-  for (int i=0;i<NUM_LEDS/2;i++) {
-    leds[i] = CHSV(0, 0, brightness_values[curPowerState]);
-  }
-  if (curModeState == NORMPLUSRGB) {
-    for (int i=NUM_LEDS/2;i<NUM_LEDS;i++) {
-      leds[i] = CHSV(hue_values[curHue], curSaturation, brightness_values[curPowerState]);
-    }
-  } else {
-    for (int i=NUM_LEDS/2;i<NUM_LEDS;i++) {
-      leds[i] = CHSV(0, 0, 0);
-    }
-  }
+
+  // for (int i=0;i<NUM_LEDS/2;i++) {
+  //   leds[i] = CHSV(0, 0, brightness_values[curPowerState]);
+  // }
+  // if (curModeState == NORMPLUSRGB) {
+  //   for (int i=NUM_LEDS/2;i<NUM_LEDS;i++) {
+  //     leds[i] = CHSV(hue_values[curHue], curSaturation, brightness_values[curPowerState]);
+  //   }
+  // } else {
+  //   for (int i=NUM_LEDS/2;i<NUM_LEDS;i++) {
+  //     leds[i] = CHSV(0, 0, 0);
+  //   }
+  // }
   
+
+  // 1 Hz, single 30% DC flash
+  if (millis() - flashCycleTimer >= 100) {
+    flashCycleTimer = millis();
+    if (ctr1 < 3) curBrightness = brightness_values[curPowerState];
+    else curBrightness = 0;
+    ctr1++;
+    ctr1 = ctr1 > 9? 0:ctr1;
+  }
+
+  
+  for (int i=NUM_LEDS/2;i<NUM_LEDS;i++) {
+    leds[i] = CHSV(hue_values[curHue], curSaturation, curBrightness);
+  }
   FastLED.show();
 
 }
@@ -123,7 +136,6 @@ void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
   FastLED.addLeds<LED_TYPE, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection( TypicalLEDStrip );
   FastLED.setBrightness(  BRIGHTNESS );
-  
 }
 
 void loop() {
