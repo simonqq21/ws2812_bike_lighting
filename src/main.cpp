@@ -29,7 +29,12 @@
  *  double flash
  *  fade up and down
  *  double fade up and down
- *  
+ * 
+ * Proposed RGB control UI:
+ * 10 single colors, 10 double colors, 10 triple colors, 10 quad colors, 1 rainbow (10 * (1+2+3+4)+10 = 110 bytes)
+ * constant, single flash, double flash, single fade, and double fade
+ * special modes 
+ * 
  */
 
 const int LED_PIN = 4;
@@ -88,6 +93,17 @@ void btn1_1longpress_func() {
 unsigned long flashCycleTimer;
 int ctr1, ctr2;
 byte curBrightness;
+
+const int updatePeriodinMillis = 5;
+const int totalPeriodLengthinMillis = 1000;
+const int startRise = 0;
+const int riseLength = 400/5;
+const int startFall = startRise + riseLength;
+const int fallLength = 400/5;
+const int startOff =  startFall + fallLength;
+const int offLength = 200/5;
+const int endCycle = startOff + offLength;
+
 void ledLoop() {
   if (curHue == 10) curSaturation = 0;
   else curSaturation = 255;
@@ -127,44 +143,29 @@ void ledLoop() {
   // 1 Hz fade; 400 mS rise, 400 mS fall, 200 mS off
   // 5 ms fading steps
   // 200 total steps; 0,80,160,200
+
   if (millis() - flashCycleTimer >= 5) {
     flashCycleTimer = millis();
-    if (ctr1 < 80) {
-      curBrightness = sin8((ctr1-0)*64/80) * brightness_values[curPowerState] / 255;
+    if (ctr1 < startFall) {
+      curBrightness = sin8((ctr1-startRise)*64/riseLength) * brightness_values[curPowerState] / 255;
     } 
     // else if (ctr1 >= 80 && ctr1 < 100) {
     //   curBrightness = brightness_values[curPowerState];
     // }
-    else if (ctr1 >= 80 && ctr1 < 160) {
-      curBrightness = sin8((ctr1-80)*64/80+64) * brightness_values[curPowerState] / 255;
+    else if (ctr1 >= startFall && ctr1 < startOff) {
+      curBrightness = sin8((ctr1-startFall)*64/fallLength+64) * brightness_values[curPowerState] / 255;
     }
-    else if (ctr1 >= 160 && ctr1 < 200) {
+    else if (ctr1 >= startOff && ctr1 < endCycle) {
       curBrightness = 0;
     }
     ctr1++;
-    ctr1 = ctr1 > 199? 0:ctr1;
+    ctr1 = ctr1 > endCycle - 1? 0:ctr1;
   }
 
-  // 1 Hz double fade; 400 mS rise, 400 mS fall, 200 mS off
+  // 1 Hz double fade; 200 mS rise, 200 mS fall, 200 mS off
   // 5 ms fading steps
-  // 200 total steps; 0,80,160,200
-  // if (millis() - flashCycleTimer >= 5) {
-  //   flashCycleTimer = millis();
-  //   if (ctr1 < 80) {
-  //     curBrightness = sin8((ctr1-0)*64/80) * brightness_values[curPowerState] / 255;
-  //   } 
-  //   // else if (ctr1 >= 80 && ctr1 < 100) {
-  //   //   curBrightness = brightness_values[curPowerState];
-  //   // }
-  //   else if (ctr1 >= 80 && ctr1 < 160) {
-  //     curBrightness = sin8((ctr1-80)*64/80+64) * brightness_values[curPowerState] / 255;
-  //   }
-  //   else if (ctr1 >= 160 && ctr1 < 200) {
-  //     curBrightness = 0;
-  //   }
-  //   ctr1++;
-  //   ctr1 = ctr1 > 199? 0:ctr1;
-  // }
+  // 200 total steps; 0,40,80,120,160,200
+
 
   for (int i=NUM_LEDS/2;i<NUM_LEDS;i++) {
     leds[i] = CHSV(hue_values[curHue], curSaturation, curBrightness);
