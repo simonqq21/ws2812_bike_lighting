@@ -96,7 +96,7 @@ byte curBrightness;
 
 const int updatePeriodinMillis = 5;
 const int totalPeriodLengthinMillis = 1000;
-unsigned int keyPoints[4];
+unsigned int keyPoints[6];
 
 
 
@@ -137,33 +137,60 @@ void ledLoop() {
     // ctr1 = ctr1 > 19? 0:ctr1;
   // }
 
-  keyPoints[0] = 0;
-  keyPoints[1] = keyPoints[0] + 400/updatePeriodinMillis;
-  keyPoints[2] = keyPoints[1] + 400/updatePeriodinMillis;
-  keyPoints[3] = keyPoints[2] + 200/updatePeriodinMillis;
+  // keyPoints[0] = 0;
+  // keyPoints[1] = keyPoints[0] + 400/updatePeriodinMillis;
+  // keyPoints[2] = keyPoints[1] + 400/updatePeriodinMillis;
+  // keyPoints[3] = keyPoints[2] + 200/updatePeriodinMillis;
+  // // 1 Hz fade; 400 mS rise, 400 mS fall, 200 mS off
+  // // 5 ms fading steps
+  // // 200 total steps; 0,80,160,200
+  // if (millis() - flashCycleTimer >= updatePeriodinMillis) {
+  //   flashCycleTimer = millis();
+  //   if (ctr1 < keyPoints[1]) {
+  //     curBrightness = sin8((ctr1-keyPoints[0])*64/(keyPoints[1] - keyPoints[0])) * brightness_values[curPowerState] / 255;
+  //   } 
+  //   else if (ctr1 >= keyPoints[1] && ctr1 < keyPoints[2]) {
+  //     curBrightness = sin8((ctr1-keyPoints[1])*64/(keyPoints[2] - keyPoints[1])+64) * brightness_values[curPowerState] / 255;
+  //   } 
+  //   else if (ctr1 >= keyPoints[2]) {
+  //     curBrightness = 0;
+  //   }
+  //   ctr1++;
+  //   ctr1 = ctr1 > keyPoints[3] - 1? 0:ctr1;
+  // }
 
-  // 1 Hz fade; 400 mS rise, 400 mS fall, 200 mS off
+  keyPoints[0] = 0;
+  keyPoints[1] = keyPoints[0] + 200/updatePeriodinMillis;
+  keyPoints[2] = keyPoints[1] + 200/updatePeriodinMillis;
+  keyPoints[3] = keyPoints[2] + 200/updatePeriodinMillis;
+  keyPoints[4] = keyPoints[3] + 200/updatePeriodinMillis;
+  keyPoints[5] = keyPoints[4] + 200/updatePeriodinMillis;
+  // 1 Hz double fade; 200 mS rise, 200 mS fall, 200 mS off
   // 5 ms fading steps
-  // 200 total steps; 0,80,160,200
+  // 200 total steps; 0,40,80,120,160,200
   if (millis() - flashCycleTimer >= updatePeriodinMillis) {
     flashCycleTimer = millis();
     if (ctr1 < keyPoints[1]) {
       curBrightness = sin8((ctr1-keyPoints[0])*64/(keyPoints[1] - keyPoints[0])) * brightness_values[curPowerState] / 255;
     } 
+
     else if (ctr1 >= keyPoints[1] && ctr1 < keyPoints[2]) {
       curBrightness = sin8((ctr1-keyPoints[1])*64/(keyPoints[2] - keyPoints[1])+64) * brightness_values[curPowerState] / 255;
     } 
-    else if (ctr1 >= keyPoints[2]) {
+
+    if (ctr1 >= keyPoints[2] && ctr1 < keyPoints[3]) {
+      curBrightness = sin8((ctr1-keyPoints[2])*64/(keyPoints[3] - keyPoints[2])) * brightness_values[curPowerState] / 255;
+    } 
+
+    else if (ctr1 >= keyPoints[3] && ctr1 < keyPoints[4]) {
+      curBrightness = sin8((ctr1-keyPoints[3])*64/(keyPoints[4] - keyPoints[3])+64) * brightness_values[curPowerState] / 255;
+    } 
+    else if (ctr1 >= keyPoints[4]) {
       curBrightness = 0;
     }
     ctr1++;
-    ctr1 = ctr1 > keyPoints[3] - 1? 0:ctr1;
+    ctr1 = ctr1 > keyPoints[5] - 1? 0:ctr1;
   }
-
-  // 1 Hz double fade; 200 mS rise, 200 mS fall, 200 mS off
-  // 5 ms fading steps
-  // 200 total steps; 0,40,80,120,160,200
-
 
   for (int i=NUM_LEDS/2;i<NUM_LEDS;i++) {
     leds[i] = CHSV(hue_values[curHue], curSaturation, curBrightness);
