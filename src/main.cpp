@@ -221,11 +221,16 @@ void ledLoop() {
     else if (ctr1 >= 8) {
       curHue = hue_values[7];
     }
-    // shift LEDs from lower to higher
-    for (int i=NUM_LEDS - 1;i>0;i--) {
-      leds[i] = leds[i-1];
+    // // shift LEDs with the flow of data
+    // for (int i=NUM_LEDS - 1;i>0;i--) {
+    //   leds[i] = leds[i-1];
+    // }
+    // leds[0] = CHSV(curHue, curSaturation, curBrightness);
+    // shift LEDs against the flow of data
+    for (int i=0;i<NUM_LEDS - 1;i++) {
+      leds[i] = leds[i+1];
     }
-    leds[0] = CHSV(curHue, curSaturation, curBrightness);
+    leds[NUM_LEDS - 1] = CHSV(curHue, curSaturation, curBrightness);
     ctr1++;
     ctr1 = ctr1 > 11? 0:ctr1;
     Serial.print("ctr1=");
