@@ -2,7 +2,6 @@
 #include "buttonlib2.h"
 #include "EEPROM.h"
 #include "FastLED.h"
-#include <IRremote.hpp>
 
 /**
  * TODO: 
@@ -56,32 +55,35 @@ CRGB leds[NUM_LEDS];
 
 CRGBPalette16 curPalette;
 TBlendType curBlending;
+const int updatePeriodinMillis = 5;
+const int totalPeriodLengthinMillis = 1000;
+unsigned int keyPoints[6];
 
 enum PWRSTATE {Off = 0, Low, Med, High};
 enum MODESTATE{NORM, NORMPLUSRGB};
 
 unsigned long lastTimeColorSwitched;
 
-byte hue_values[] = {0, 24, 48, 80, 96, 128, 144, 160, 192, 224, 0};
-byte brightness_values[] = {0, 80, 160, 250};
+const byte hue_values[] = {0, 24, 48, 80, 96, 128, 144, 160, 192, 224, 0};
+const byte brightness_values[] = {0, 80, 160, 250};
 
-byte colorIndices[7] = {};
+byte colorIndices[10] = {};
 int lengthOfColors = 3;
-byte curHue;
 
-byte curPowerState = Off;
 byte curModeState = NORM;
+byte curHue;
 byte curSaturation;
+byte curBrightness = Off;
 
 void btn1_change_func() {
   btn1.changeInterruptFunc();
 }
 
 void btn1_1shortclick_func() {
-  curPowerState++;
-  if (curPowerState > High) curPowerState = Off;
+  curBrightness++;
+  if (curBrightness > High) curBrightness = Off;
   Serial.print("curPowerState = ");
-  Serial.println(curPowerState);
+  Serial.println(curBrightness);
 }
 
 void btn1_2shortclicks_func() {
@@ -102,31 +104,13 @@ unsigned long flashCycleTimer;
 unsigned int ctr1;
 byte curBrightness;
 
-const int updatePeriodinMillis = 5;
-const int totalPeriodLengthinMillis = 1000;
-unsigned int keyPoints[6];
-
-
-
-void ledLoop() {
-
-  if (curHue == 10) curSaturation = 0;
-  else curSaturation = 255;
-
-  // for (int i=0;i<NUM_LEDS/2;i++) {
-  //   leds[i] = CHSV(0, 0, brightness_values[curPowerState]);
-  // }
-  // if (curModeState == NORMPLUSRGB) {
-  //   for (int i=NUM_LEDS/2;i<NUM_LEDS;i++) {
+void steadyLEDs() {
+  // for (int i=NUM_LEDS/2;i<NUM_LEDS;i++) {
   //     leds[i] = CHSV(hue_values[curHue], curSaturation, brightness_values[curPowerState]);
   //   }
-  // } else {
-  //   for (int i=NUM_LEDS/2;i<NUM_LEDS;i++) {
-  //     leds[i] = CHSV(0, 0, 0);
-  //   }
-  // }
-  
+}
 
+void singleFlashLEDs() {
   // // 1 Hz, single 30% DC flash
   // if (millis() - flashCycleTimer >= 100) {
   //   flashCycleTimer = millis();
@@ -135,7 +119,9 @@ void ledLoop() {
   //   ctr1++;
   //   ctr1 = ctr1 > 9? 0:ctr1;
   // }
+}
 
+void doubleFlashLEDs() {
   // // 1 Hz, double 15% DC flash
   // if (millis() - flashCycleTimer >= 50) {
   //   flashCycleTimer = millis();
@@ -144,7 +130,9 @@ void ledLoop() {
     // ctr1++;
     // ctr1 = ctr1 > 19? 0:ctr1;
   // }
+}
 
+void singleFadeLEDs() {
   // keyPoints[0] = 0;
   // keyPoints[1] = keyPoints[0] + 400/updatePeriodinMillis;
   // keyPoints[2] = keyPoints[1] + 400/updatePeriodinMillis;
@@ -166,7 +154,9 @@ void ledLoop() {
   //   ctr1++;
   //   ctr1 = ctr1 > keyPoints[3] - 1? 0:ctr1;
   // }
+}
 
+void doubleFadeLEDs() {
   // keyPoints[0] = 0;
   // keyPoints[1] = keyPoints[0] + 200/updatePeriodinMillis;
   // keyPoints[2] = keyPoints[1] + 200/updatePeriodinMillis;
@@ -202,14 +192,15 @@ void ledLoop() {
   // for (int i=NUM_LEDS/2;i<NUM_LEDS;i++) {
   //   leds[i] = CHSV(hue_values[curHue], curSaturation, curBrightness);
   // }
-  
+}
 
+void chasingLEDs() {
   // left/right shift multiple colors throughout the LED array
   /**
    * shift the LED pixels every 100 ms
    * 4 pixels red, 4 pixels green, 4 pixels blue 
   */ 
-  curBrightness = brightness_values[curPowerState];
+  curBrightness = brightness_values[curBrightness];
   if (millis() - flashCycleTimer >= 100) {
     flashCycleTimer = millis();
     if (ctr1 < 4) {
@@ -236,6 +227,24 @@ void ledLoop() {
     Serial.print("ctr1=");
     Serial.println(ctr1);
   }
+}
+
+void ledLoop() {
+
+  if (curHue == 10) curSaturation = 0;
+  else curSaturation = 255;
+
+  // for (int i=0;i<NUM_LEDS/2;i++) {
+  //   leds[i] = CHSV(0, 0, brightness_values[curPowerState]);
+  // }
+  // if (curModeState == NORMPLUSRGB) {
+  //   
+  // } else {
+  //   for (int i=NUM_LEDS/2;i<NUM_LEDS;i++) {
+  //     leds[i] = CHSV(0, 0, 0);
+  //   }
+  // }
+  
 
   FastLED.show();
 }
