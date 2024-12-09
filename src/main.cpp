@@ -91,20 +91,17 @@ void btn1_1longpress_func() {
 }
 
 unsigned long flashCycleTimer;
-int ctr1, ctr2;
+int ctr1;
 byte curBrightness;
 
 const int updatePeriodinMillis = 5;
 const int totalPeriodLengthinMillis = 1000;
-const int startRise = 0;
-const int riseLength = 400/5;
-const int startFall = startRise + riseLength;
-const int fallLength = 400/5;
-const int startOff =  startFall + fallLength;
-const int offLength = 200/5;
-const int endCycle = startOff + offLength;
+unsigned int keyPoints[4];
+
+
 
 void ledLoop() {
+
   if (curHue == 10) curSaturation = 0;
   else curSaturation = 255;
 
@@ -140,26 +137,27 @@ void ledLoop() {
     // ctr1 = ctr1 > 19? 0:ctr1;
   // }
 
+  keyPoints[0] = 0;
+  keyPoints[1] = keyPoints[0] + 400/updatePeriodinMillis;
+  keyPoints[2] = keyPoints[1] + 400/updatePeriodinMillis;
+  keyPoints[3] = keyPoints[2] + 200/updatePeriodinMillis;
+
   // 1 Hz fade; 400 mS rise, 400 mS fall, 200 mS off
   // 5 ms fading steps
   // 200 total steps; 0,80,160,200
-
-  if (millis() - flashCycleTimer >= 5) {
+  if (millis() - flashCycleTimer >= updatePeriodinMillis) {
     flashCycleTimer = millis();
-    if (ctr1 < startFall) {
-      curBrightness = sin8((ctr1-startRise)*64/riseLength) * brightness_values[curPowerState] / 255;
+    if (ctr1 < keyPoints[1]) {
+      curBrightness = sin8((ctr1-keyPoints[0])*64/(keyPoints[1] - keyPoints[0])) * brightness_values[curPowerState] / 255;
     } 
-    // else if (ctr1 >= 80 && ctr1 < 100) {
-    //   curBrightness = brightness_values[curPowerState];
-    // }
-    else if (ctr1 >= startFall && ctr1 < startOff) {
-      curBrightness = sin8((ctr1-startFall)*64/fallLength+64) * brightness_values[curPowerState] / 255;
-    }
-    else if (ctr1 >= startOff && ctr1 < endCycle) {
+    else if (ctr1 >= keyPoints[1] && ctr1 < keyPoints[2]) {
+      curBrightness = sin8((ctr1-keyPoints[1])*64/(keyPoints[2] - keyPoints[1])+64) * brightness_values[curPowerState] / 255;
+    } 
+    else if (ctr1 >= keyPoints[2]) {
       curBrightness = 0;
     }
     ctr1++;
-    ctr1 = ctr1 > endCycle - 1? 0:ctr1;
+    ctr1 = ctr1 > keyPoints[3] - 1? 0:ctr1;
   }
 
   // 1 Hz double fade; 200 mS rise, 200 mS fall, 200 mS off
