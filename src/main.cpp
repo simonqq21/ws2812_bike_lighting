@@ -15,20 +15,26 @@
  * rear light is only either red or orange
  * rgb light is controlled by the set RGB mode.
  * 
- * v1: 
+ * 0.1
  * Momentary button control
  * button1
  * single click - cycle between off, low, medium, and high
  * double click - cycle between driving lights only and driving lights + RGB 
  * single long press - cycle through preset RGB solid colors
  * 
- * v2:
+ * 0.2
  * implement the ff. LED effects:
  *  constant
  *  single flash
  *  double flash
  *  fade up and down
  *  double fade up and down
+ * 
+ * 0.3
+ * Implement the ff. LED effects:
+ * left/right shift multiple colors throughout the LED array
+ * 
+ * 
  * 
  * Proposed RGB control UI:
  * 10 single colors, 10 double colors, 10 triple colors, 10 quad colors, 1 rainbow (10 * (1+2+3+4)+10 = 110 bytes)
@@ -59,11 +65,13 @@ unsigned long lastTimeColorSwitched;
 byte hue_values[] = {0, 24, 48, 80, 96, 128, 144, 160, 192, 224, 0};
 byte brightness_values[] = {0, 80, 160, 250};
 
+byte colorIndices[7] = {};
+int lengthOfColors = 3;
+byte curHue;
 
 byte curPowerState = Off;
 byte curModeState = NORM;
 byte curSaturation;
-byte curHue;
 
 void btn1_change_func() {
   btn1.changeInterruptFunc();
@@ -91,7 +99,7 @@ void btn1_1longpress_func() {
 }
 
 unsigned long flashCycleTimer;
-int ctr1;
+unsigned int ctr1;
 byte curBrightness;
 
 const int updatePeriodinMillis = 5;
@@ -159,44 +167,72 @@ void ledLoop() {
   //   ctr1 = ctr1 > keyPoints[3] - 1? 0:ctr1;
   // }
 
-  keyPoints[0] = 0;
-  keyPoints[1] = keyPoints[0] + 200/updatePeriodinMillis;
-  keyPoints[2] = keyPoints[1] + 200/updatePeriodinMillis;
-  keyPoints[3] = keyPoints[2] + 200/updatePeriodinMillis;
-  keyPoints[4] = keyPoints[3] + 200/updatePeriodinMillis;
-  keyPoints[5] = keyPoints[4] + 200/updatePeriodinMillis;
-  // 1 Hz double fade; 200 mS rise, 200 mS fall, 200 mS off
-  // 5 ms fading steps
-  // 200 total steps; 0,40,80,120,160,200
-  if (millis() - flashCycleTimer >= updatePeriodinMillis) {
+  // keyPoints[0] = 0;
+  // keyPoints[1] = keyPoints[0] + 200/updatePeriodinMillis;
+  // keyPoints[2] = keyPoints[1] + 200/updatePeriodinMillis;
+  // keyPoints[3] = keyPoints[2] + 200/updatePeriodinMillis;
+  // keyPoints[4] = keyPoints[3] + 200/updatePeriodinMillis;
+  // keyPoints[5] = keyPoints[4] + 200/updatePeriodinMillis;
+  // // 1 Hz double fade; 200 mS rise, 200 mS fall, 200 mS off
+  // // 5 ms fading steps
+  // // 200 total steps; 0,40,80,120,160,200
+  // if (millis() - flashCycleTimer >= updatePeriodinMillis) {
+  //   flashCycleTimer = millis();
+  //   if (ctr1 < keyPoints[1]) {
+  //     curBrightness = sin8((ctr1-keyPoints[0])*64/(keyPoints[1] - keyPoints[0])) * brightness_values[curPowerState] / 255;
+  //   } 
+
+  //   else if (ctr1 >= keyPoints[1] && ctr1 < keyPoints[2]) {
+  //     curBrightness = sin8((ctr1-keyPoints[1])*64/(keyPoints[2] - keyPoints[1])+64) * brightness_values[curPowerState] / 255;
+  //   } 
+
+  //   if (ctr1 >= keyPoints[2] && ctr1 < keyPoints[3]) {
+  //     curBrightness = sin8((ctr1-keyPoints[2])*64/(keyPoints[3] - keyPoints[2])) * brightness_values[curPowerState] / 255;
+  //   } 
+
+  //   else if (ctr1 >= keyPoints[3] && ctr1 < keyPoints[4]) {
+  //     curBrightness = sin8((ctr1-keyPoints[3])*64/(keyPoints[4] - keyPoints[3])+64) * brightness_values[curPowerState] / 255;
+  //   } 
+  //   else if (ctr1 >= keyPoints[4]) {
+  //     curBrightness = 0;
+  //   }
+  //   ctr1++;
+  //   ctr1 = ctr1 > keyPoints[5] - 1? 0:ctr1;
+  // }
+  // for (int i=NUM_LEDS/2;i<NUM_LEDS;i++) {
+  //   leds[i] = CHSV(hue_values[curHue], curSaturation, curBrightness);
+  // }
+  
+
+  // left/right shift multiple colors throughout the LED array
+  /**
+   * shift the LED pixels every 100 ms
+   * 4 pixels red, 4 pixels green, 4 pixels blue 
+  */ 
+  curBrightness = brightness_values[curPowerState];
+  if (millis() - flashCycleTimer >= 100) {
     flashCycleTimer = millis();
-    if (ctr1 < keyPoints[1]) {
-      curBrightness = sin8((ctr1-keyPoints[0])*64/(keyPoints[1] - keyPoints[0])) * brightness_values[curPowerState] / 255;
-    } 
-
-    else if (ctr1 >= keyPoints[1] && ctr1 < keyPoints[2]) {
-      curBrightness = sin8((ctr1-keyPoints[1])*64/(keyPoints[2] - keyPoints[1])+64) * brightness_values[curPowerState] / 255;
-    } 
-
-    if (ctr1 >= keyPoints[2] && ctr1 < keyPoints[3]) {
-      curBrightness = sin8((ctr1-keyPoints[2])*64/(keyPoints[3] - keyPoints[2])) * brightness_values[curPowerState] / 255;
-    } 
-
-    else if (ctr1 >= keyPoints[3] && ctr1 < keyPoints[4]) {
-      curBrightness = sin8((ctr1-keyPoints[3])*64/(keyPoints[4] - keyPoints[3])+64) * brightness_values[curPowerState] / 255;
-    } 
-    else if (ctr1 >= keyPoints[4]) {
-      curBrightness = 0;
+    if (ctr1 < 4) {
+      curHue = hue_values[0];
     }
+    else if (ctr1 >= 4 && ctr1 < 8) {
+      curHue = hue_values[4];
+    }
+    else if (ctr1 >= 8) {
+      curHue = hue_values[7];
+    }
+    // shift LEDs from lower to higher
+    for (int i=NUM_LEDS - 1;i>0;i--) {
+      leds[i] = leds[i-1];
+    }
+    leds[0] = CHSV(curHue, curSaturation, curBrightness);
     ctr1++;
-    ctr1 = ctr1 > keyPoints[5] - 1? 0:ctr1;
+    ctr1 = ctr1 > 11? 0:ctr1;
+    Serial.print("ctr1=");
+    Serial.println(ctr1);
   }
 
-  for (int i=NUM_LEDS/2;i<NUM_LEDS;i++) {
-    leds[i] = CHSV(hue_values[curHue], curSaturation, curBrightness);
-  }
   FastLED.show();
-
 }
 
 void setup() {
