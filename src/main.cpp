@@ -179,7 +179,15 @@ void doubleFlashLEDs() {
     if (ctr1 / 3 == 0 || ctr1 / 3 == 2) curBrightnessVal = brightness_values[curBrightness];
     else curBrightnessVal = 0;
     ctr1++;
+    if (ctr1 > 19) {
+      curHueIndex++;
+      curHueIndex = curHueIndex > lenColors-1? 0: curHueIndex;
+      curHueVal = hue_values[curColors[curHueIndex]];
+    }
     ctr1 = ctr1 > 19? 0:ctr1;
+    for (int i=NUM_LEDS/2;i<NUM_LEDS;i++) {
+      leds[i] = CHSV(curHueVal, curSaturationVal, curBrightnessVal);
+    }
   }
 }
 
