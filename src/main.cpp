@@ -35,7 +35,7 @@
  * 
  * 0.4 
  * Implement a standard for storing the colors, modes, brightness
- * 
+ * Incorporate the ability to have multiple colors
  * 
  * Implement basic button control.
  * Control brightness, rgb enable, color, and mode.
@@ -114,6 +114,7 @@ byte curRGBMode;
 /**
  * current hue and saturation variables
  */
+byte curHueIndex;
 byte curHueVal;
 byte curSaturationVal;
 byte curBrightnessVal;
@@ -148,7 +149,7 @@ unsigned int ctr1;
 
 void steadyLEDs() {
   // for (int i=NUM_LEDS/2;i<NUM_LEDS;i++) {
-  //     leds[i] = CHSV(hue_values[curHueVal], curSaturationVal, brightness_values[curPowerState]);
+  //     leds[i] = CHSV(hue_values[curHueVal], curSaturationVal, brightness_values[curBrightness]);
   //   }
 }
 
@@ -159,22 +160,27 @@ void singleFlashLEDs() {
     if (ctr1 < 3) curBrightnessVal = brightness_values[curBrightness];
     else curBrightnessVal = 0;
     ctr1++;
+    if (ctr1 > 9) {
+      curHueIndex++;
+      curHueIndex = curHueIndex > lenColors-1? 0: curHueIndex;
+      curHueVal = hue_values[curColors[curHueIndex]];
+    }
     ctr1 = ctr1 > 9? 0:ctr1;
     for (int i=NUM_LEDS/2;i<NUM_LEDS;i++) {
-      leds[i] = CHSV(hue_values[curHueVal], curSaturationVal, curBrightnessVal);
+      leds[i] = CHSV(curHueVal, curSaturationVal, curBrightnessVal);
     }
   }
 }
 
 void doubleFlashLEDs() {
-  // // 1 Hz, double 15% DC flash
-  // if (millis() - flashCycleTimer >= 50) {
-  //   flashCycleTimer = millis();
-  //   if (ctr1 / 3 == 0 || ctr1 / 3 == 2) curBrightnessVal = brightness_values[curBrightness];
-  //   else curBrightnessVal = 0;
-    // ctr1++;
-    // ctr1 = ctr1 > 19? 0:ctr1;
-  // }
+  // 1 Hz, double 15% DC flash
+  if (millis() - flashCycleTimer >= 50) {
+    flashCycleTimer = millis();
+    if (ctr1 / 3 == 0 || ctr1 / 3 == 2) curBrightnessVal = brightness_values[curBrightness];
+    else curBrightnessVal = 0;
+    ctr1++;
+    ctr1 = ctr1 > 19? 0:ctr1;
+  }
 }
 
 void singleFadeLEDs() {
@@ -188,10 +194,10 @@ void singleFadeLEDs() {
   // if (millis() - flashCycleTimer >= updatePeriodinMillis) {
   //   flashCycleTimer = millis();
   //   if (ctr1 < keyPoints[1]) {
-  //     curBrightnessVal = sin8((ctr1-keyPoints[0])*64/(keyPoints[1] - keyPoints[0])) * brightness_values[curPowerState] / 255;
+  //     curBrightnessVal = sin8((ctr1-keyPoints[0])*64/(keyPoints[1] - keyPoints[0])) * brightness_values[curBrightness] / 255;
   //   } 
   //   else if (ctr1 >= keyPoints[1] && ctr1 < keyPoints[2]) {
-  //     curBrightnessVal = sin8((ctr1-keyPoints[1])*64/(keyPoints[2] - keyPoints[1])+64) * brightness_values[curPowerState] / 255;
+  //     curBrightnessVal = sin8((ctr1-keyPoints[1])*64/(keyPoints[2] - keyPoints[1])+64) * brightness_values[curBrightness] / 255;
   //   } 
   //   else if (ctr1 >= keyPoints[2]) {
   //     curBrightnessVal = 0;
@@ -202,41 +208,41 @@ void singleFadeLEDs() {
 }
 
 void doubleFadeLEDs() {
-  // keyPoints[0] = 0;
-  // keyPoints[1] = keyPoints[0] + 200/updatePeriodinMillis;
-  // keyPoints[2] = keyPoints[1] + 200/updatePeriodinMillis;
-  // keyPoints[3] = keyPoints[2] + 200/updatePeriodinMillis;
-  // keyPoints[4] = keyPoints[3] + 200/updatePeriodinMillis;
-  // keyPoints[5] = keyPoints[4] + 200/updatePeriodinMillis;
-  // // 1 Hz double fade; 200 mS rise, 200 mS fall, 200 mS off
-  // // 5 ms fading steps
-  // // 200 total steps; 0,40,80,120,160,200
-  // if (millis() - flashCycleTimer >= updatePeriodinMillis) {
-  //   flashCycleTimer = millis();
-  //   if (ctr1 < keyPoints[1]) {
-  //     curBrightnessVal = sin8((ctr1-keyPoints[0])*64/(keyPoints[1] - keyPoints[0])) * brightness_values[curPowerState] / 255;
-  //   } 
+  keyPoints[0] = 0;
+  keyPoints[1] = keyPoints[0] + 200/updatePeriodinMillis;
+  keyPoints[2] = keyPoints[1] + 200/updatePeriodinMillis;
+  keyPoints[3] = keyPoints[2] + 200/updatePeriodinMillis;
+  keyPoints[4] = keyPoints[3] + 200/updatePeriodinMillis;
+  keyPoints[5] = keyPoints[4] + 200/updatePeriodinMillis;
+  // 1 Hz double fade; 200 mS rise, 200 mS fall, 200 mS off
+  // 5 ms fading steps
+  // 200 total steps; 0,40,80,120,160,200
+  if (millis() - flashCycleTimer >= updatePeriodinMillis) {
+    flashCycleTimer = millis();
+    if (ctr1 < keyPoints[1]) {
+      curBrightnessVal = sin8((ctr1-keyPoints[0])*64/(keyPoints[1] - keyPoints[0])) * brightness_values[curBrightness] / 255;
+    } 
 
-  //   else if (ctr1 >= keyPoints[1] && ctr1 < keyPoints[2]) {
-  //     curBrightnessVal = sin8((ctr1-keyPoints[1])*64/(keyPoints[2] - keyPoints[1])+64) * brightness_values[curPowerState] / 255;
-  //   } 
+    else if (ctr1 >= keyPoints[1] && ctr1 < keyPoints[2]) {
+      curBrightnessVal = sin8((ctr1-keyPoints[1])*64/(keyPoints[2] - keyPoints[1])+64) * brightness_values[curBrightness] / 255;
+    } 
 
-  //   if (ctr1 >= keyPoints[2] && ctr1 < keyPoints[3]) {
-  //     curBrightnessVal = sin8((ctr1-keyPoints[2])*64/(keyPoints[3] - keyPoints[2])) * brightness_values[curPowerState] / 255;
-  //   } 
+    if (ctr1 >= keyPoints[2] && ctr1 < keyPoints[3]) {
+      curBrightnessVal = sin8((ctr1-keyPoints[2])*64/(keyPoints[3] - keyPoints[2])) * brightness_values[curBrightness] / 255;
+    } 
 
-  //   else if (ctr1 >= keyPoints[3] && ctr1 < keyPoints[4]) {
-  //     curBrightnessVal = sin8((ctr1-keyPoints[3])*64/(keyPoints[4] - keyPoints[3])+64) * brightness_values[curPowerState] / 255;
-  //   } 
-  //   else if (ctr1 >= keyPoints[4]) {
-  //     curBrightnessVal = 0;
-  //   }
-  //   ctr1++;
-  //   ctr1 = ctr1 > keyPoints[5] - 1? 0:ctr1;
-  // }
-  // for (int i=NUM_LEDS/2;i<NUM_LEDS;i++) {
-  //   leds[i] = CHSV(hue_values[curHueVal], curSaturationVal, curBrightnessVal);
-  // }
+    else if (ctr1 >= keyPoints[3] && ctr1 < keyPoints[4]) {
+      curBrightnessVal = sin8((ctr1-keyPoints[3])*64/(keyPoints[4] - keyPoints[3])+64) * brightness_values[curBrightness] / 255;
+    } 
+    else if (ctr1 >= keyPoints[4]) {
+      curBrightnessVal = 0;
+    }
+    ctr1++;
+    ctr1 = ctr1 > keyPoints[5] - 1? 0:ctr1;
+  }
+  for (int i=NUM_LEDS/2;i<NUM_LEDS;i++) {
+    leds[i] = CHSV(hue_values[curHueVal], curSaturationVal, curBrightnessVal);
+  }
 }
 
 void chasingLEDs() {
@@ -280,7 +286,7 @@ void ledLoop() {
   else curSaturationVal = 255;
 
   // for (int i=0;i<NUM_LEDS/2;i++) {
-  //   leds[i] = CHSV(0, 0, brightness_values[curPowerState]);
+  //   leds[i] = CHSV(0, 0, brightness_values[curBrightness]);
   // }
   // if (curMode == MODE_NORMPLUSRGB) {
   //   
@@ -290,8 +296,11 @@ void ledLoop() {
   //   }
   // }
   
-  singleFlashLEDs();
-
+  // singleFlashLEDs();
+  doubleFlashLEDs();
+  // singleFadeLEDs();
+  // doubleFadeLEDs();
+  // chasingLEDs();
   FastLED.show();
 }
 
@@ -308,6 +317,11 @@ void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
   FastLED.addLeds<LED_TYPE, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection( TypicalLEDStrip );
   FastLED.setBrightness(  BRIGHTNESS );
+
+  curColors[0] = 0;
+  curColors[1] = 4;
+  curColors[2] = 7;
+  lenColors = 3;
 }
 
 void loop() {
