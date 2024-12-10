@@ -62,7 +62,7 @@ CRGB leds[NUM_LEDS];
 
 CRGBPalette16 curPalette;
 TBlendType curBlending;
-int updatePeriodinMillis = 5;
+unsigned int updatePeriodinMillis = 5;
 int totalPeriodLengthinMillis = 1000;
 unsigned int keyPoints[6];
 
@@ -202,6 +202,7 @@ void doubleFlashLEDs() {
 }
 
 void singleFadeLEDs() {
+  updatePeriodinMillis = 5;
   keyPoints[0] = 0;
   keyPoints[1] = keyPoints[0] + 400/updatePeriodinMillis;
   keyPoints[2] = keyPoints[1] + 400/updatePeriodinMillis;
@@ -234,6 +235,7 @@ void singleFadeLEDs() {
 }
 
 void doubleFadeLEDs() {
+  updatePeriodinMillis = 5;
   keyPoints[0] = 0;
   keyPoints[1] = keyPoints[0] + 200/updatePeriodinMillis;
   keyPoints[2] = keyPoints[1] + 200/updatePeriodinMillis;
@@ -282,32 +284,34 @@ void chasingLEDs() {
    * shift the LED pixels every 100 ms
    * 4 pixels red, 4 pixels green, 4 pixels blue 
   */ 
+  updatePeriodinMillis = 100;
+  keyPoints[0] = 0;
+  keyPoints[1] = keyPoints[0] + 400/updatePeriodinMillis;
+  keyPoints[2] = keyPoints[1] + 400/updatePeriodinMillis;
+  keyPoints[3] = keyPoints[2] + 400/updatePeriodinMillis;
   curBrightnessVal = brightness_values[curBrightness];
-  if (millis() - flashCycleTimer >= 100) {
+  if (millis() - flashCycleTimer >= updatePeriodinMillis) {
     flashCycleTimer = millis();
-    if (ctr1 < 4) {
-      curHueVal = hue_values[0];
+    ctr1++;
+    if (!(ctr1 % 4)) {
+      curHueIndex++;
     }
-    else if (ctr1 >= 4 && ctr1 < 8) {
-      curHueVal = hue_values[4];
-    }
-    else if (ctr1 >= 8) {
-      curHueVal = hue_values[7];
-    }
+    curHueIndex = curHueIndex > (lenColors - 1)?0: curHueIndex;
+    curHueVal = hue_values[curColors[curHueIndex]];
+
     // // shift LEDs with the flow of data
     // for (int i=NUM_LEDS - 1;i>0;i--) {
     //   leds[i] = leds[i-1];
     // }
     // leds[0] = CHSV(curHueVal, curSaturationVal, curBrightnessVal);
+    
     // shift LEDs against the flow of data
     for (int i=0;i<NUM_LEDS - 1;i++) {
       leds[i] = leds[i+1];
     }
+    
     leds[NUM_LEDS - 1] = CHSV(curHueVal, curSaturationVal, curBrightnessVal);
-    ctr1++;
-    ctr1 = ctr1 > 11? 0:ctr1;
-    Serial.print("ctr1=");
-    Serial.println(ctr1);
+    
   }
 }
 
@@ -349,13 +353,20 @@ void setup() {
   FastLED.addLeds<LED_TYPE, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection( TypicalLEDStrip );
   FastLED.setBrightness(  BRIGHTNESS );
 
+  // curColors[0] = 0;
+  // curColors[1] = 1;
+  // curColors[2] = 2;
+  // curColors[3] = 4;
+  // curColors[4] = 7;
+  // curColors[5] = 8;
+  // lenColors = 6;
+
+  // curColors[0] = 4;
+  // lenColors = 1;
+
   curColors[0] = 0;
-  curColors[1] = 1;
-  curColors[2] = 2;
-  curColors[3] = 4;
-  curColors[4] = 7;
-  curColors[5] = 8;
-  lenColors = 6;
+  curColors[1] = 7;
+  lenColors = 2;
 }
 
 void loop() {
