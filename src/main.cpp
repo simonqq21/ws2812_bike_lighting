@@ -33,6 +33,13 @@
  * Implement the ff. LED effects:
  * left/right shift multiple colors throughout the LED array
  * 
+ * 0.4 
+ * Implement a standard for storing the colors, modes, brightness
+ * 
+ * 
+ * Implement basic button control.
+ * Control brightness, rgb enable, color, and mode.
+ * 
  * 
  * 
  * Proposed RGB control UI:
@@ -59,21 +66,57 @@ const int updatePeriodinMillis = 5;
 const int totalPeriodLengthinMillis = 1000;
 unsigned int keyPoints[6];
 
-enum PWRSTATE {Off = 0, Low, Med, High};
-enum MODESTATE{NORM, NORMPLUSRGB};
+enum PWRSTATE {
+  PWR_OFF = 0, 
+  PWR_LOW, 
+  PWR_MED, 
+  PWR_HIGH,
+};
+enum MODESTATE {
+  MODE_NORM = 0, 
+  MODE_NORMPLUSRGB,
+};
+enum RGBMODESTATE {
+  RGBMODE_CONSTANT = 0, 
+  RGBMODE_SINGLEFLASH, 
+  RGBMODE_DOUBLEFLASH, 
+  RGBMODE_SINGLEFADE, 
+  RGBMODE_DOUBLEFADE, 
+  RGBMODE_FORWARDSHIFT, 
+  RGBMODE_REVERSESHIFT,
+};
 
 unsigned long lastTimeColorSwitched;
-
+// int x = RGBMODE_CONSTANT;
 const byte hue_values[] = {0, 24, 48, 80, 96, 128, 144, 160, 192, 224, 0};
 const byte brightness_values[] = {0, 80, 160, 250};
 
-byte colorIndices[10] = {};
-int lengthOfColors = 3;
+/**
+ * curMode - either MODE_NORM or MODE_NORMPLUSRGB
+ *    MODE_NORM - only front and rear lights on
+ *    MODE_NORMPLUSRGB - front, rear, and RGB lights on
+ * curBrightness - global brightness of all lights
+ *    - either PWR_OFF, PWR_LOW, PWR_MED, or PWR_HIGH
+ * curColors - array of colors in that mode
+ *    - can contain anywhere between 0 to 10 colors, indices inside hue_values
+ *    - length of colors is in lenColors
+ * curRGBMode - current RGB mode
+ *    - can be either RGBMODE_CONSTANT, RGBMODE_SINGLEFLASH, RGBMODE_DOUBLEFLASH,
+ *      RGBMODE_SINGLEFADE, RGBMODE_DOUBLEFADE, RGBMODE_FORWARDSHIFT, 
+ *      RGBMODE_REVERSESHIFT
+ */ 
+byte curMode = MODE_NORMPLUSRGB;
+byte curBrightness = PWR_LOW;
+byte curColors[10];
+int lenColors = 3;
+byte curRGBMode;
 
-byte curModeState = NORM;
-byte curHue;
-byte curSaturation;
-byte curBrightness = Off;
+/**
+ * current hue and saturation variables
+ */
+byte curHueVal;
+byte curSaturationVal;
+byte curBrightnessVal;
 
 void btn1_change_func() {
   btn1.changeInterruptFunc();
@@ -81,52 +124,54 @@ void btn1_change_func() {
 
 void btn1_1shortclick_func() {
   curBrightness++;
-  if (curBrightness > High) curBrightness = Off;
-  Serial.print("curPowerState = ");
+  if (curBrightness > PWR_HIGH) curBrightness = PWR_OFF;
+  Serial.print("curBrightness = ");
   Serial.println(curBrightness);
 }
 
 void btn1_2shortclicks_func() {
-  curModeState++;
-  if (curModeState > NORMPLUSRGB) curModeState = 0;
-  Serial.print("curModeState = ");
-  Serial.println(curModeState);
+  curMode++;
+  if (curMode > MODE_NORMPLUSRGB) curMode = 0;
+  Serial.print("curMode = ");
+  Serial.println(curMode);
 }
 
 void btn1_1longpress_func() {
-  curHue++;
-  if (curHue > 10) curHue = 0;
-  Serial.print("curHue = ");
-  Serial.println(curHue);
+  curHueVal++;
+  if (curHueVal > 10) curHueVal = 0;
+  Serial.print("curHueVal = ");
+  Serial.println(curHueVal);
 }
 
 unsigned long flashCycleTimer;
 unsigned int ctr1;
-byte curBrightness;
 
 void steadyLEDs() {
   // for (int i=NUM_LEDS/2;i<NUM_LEDS;i++) {
-  //     leds[i] = CHSV(hue_values[curHue], curSaturation, brightness_values[curPowerState]);
+  //     leds[i] = CHSV(hue_values[curHueVal], curSaturationVal, brightness_values[curPowerState]);
   //   }
 }
 
 void singleFlashLEDs() {
-  // // 1 Hz, single 30% DC flash
-  // if (millis() - flashCycleTimer >= 100) {
-  //   flashCycleTimer = millis();
-  //   if (ctr1 < 3) curBrightness = brightness_values[curPowerState];
-  //   else curBrightness = 0;
-  //   ctr1++;
-  //   ctr1 = ctr1 > 9? 0:ctr1;
-  // }
+  // 1 Hz, single 30% DC flash
+  if (millis() - flashCycleTimer >= 100) {
+    flashCycleTimer = millis();
+    if (ctr1 < 3) curBrightnessVal = brightness_values[curBrightness];
+    else curBrightnessVal = 0;
+    ctr1++;
+    ctr1 = ctr1 > 9? 0:ctr1;
+    for (int i=NUM_LEDS/2;i<NUM_LEDS;i++) {
+      leds[i] = CHSV(hue_values[curHueVal], curSaturationVal, curBrightnessVal);
+    }
+  }
 }
 
 void doubleFlashLEDs() {
   // // 1 Hz, double 15% DC flash
   // if (millis() - flashCycleTimer >= 50) {
   //   flashCycleTimer = millis();
-  //   if (ctr1 / 3 == 0 || ctr1 / 3 == 2) curBrightness = brightness_values[curPowerState];
-  //   else curBrightness = 0;
+  //   if (ctr1 / 3 == 0 || ctr1 / 3 == 2) curBrightnessVal = brightness_values[curBrightness];
+  //   else curBrightnessVal = 0;
     // ctr1++;
     // ctr1 = ctr1 > 19? 0:ctr1;
   // }
@@ -143,13 +188,13 @@ void singleFadeLEDs() {
   // if (millis() - flashCycleTimer >= updatePeriodinMillis) {
   //   flashCycleTimer = millis();
   //   if (ctr1 < keyPoints[1]) {
-  //     curBrightness = sin8((ctr1-keyPoints[0])*64/(keyPoints[1] - keyPoints[0])) * brightness_values[curPowerState] / 255;
+  //     curBrightnessVal = sin8((ctr1-keyPoints[0])*64/(keyPoints[1] - keyPoints[0])) * brightness_values[curPowerState] / 255;
   //   } 
   //   else if (ctr1 >= keyPoints[1] && ctr1 < keyPoints[2]) {
-  //     curBrightness = sin8((ctr1-keyPoints[1])*64/(keyPoints[2] - keyPoints[1])+64) * brightness_values[curPowerState] / 255;
+  //     curBrightnessVal = sin8((ctr1-keyPoints[1])*64/(keyPoints[2] - keyPoints[1])+64) * brightness_values[curPowerState] / 255;
   //   } 
   //   else if (ctr1 >= keyPoints[2]) {
-  //     curBrightness = 0;
+  //     curBrightnessVal = 0;
   //   }
   //   ctr1++;
   //   ctr1 = ctr1 > keyPoints[3] - 1? 0:ctr1;
@@ -169,28 +214,28 @@ void doubleFadeLEDs() {
   // if (millis() - flashCycleTimer >= updatePeriodinMillis) {
   //   flashCycleTimer = millis();
   //   if (ctr1 < keyPoints[1]) {
-  //     curBrightness = sin8((ctr1-keyPoints[0])*64/(keyPoints[1] - keyPoints[0])) * brightness_values[curPowerState] / 255;
+  //     curBrightnessVal = sin8((ctr1-keyPoints[0])*64/(keyPoints[1] - keyPoints[0])) * brightness_values[curPowerState] / 255;
   //   } 
 
   //   else if (ctr1 >= keyPoints[1] && ctr1 < keyPoints[2]) {
-  //     curBrightness = sin8((ctr1-keyPoints[1])*64/(keyPoints[2] - keyPoints[1])+64) * brightness_values[curPowerState] / 255;
+  //     curBrightnessVal = sin8((ctr1-keyPoints[1])*64/(keyPoints[2] - keyPoints[1])+64) * brightness_values[curPowerState] / 255;
   //   } 
 
   //   if (ctr1 >= keyPoints[2] && ctr1 < keyPoints[3]) {
-  //     curBrightness = sin8((ctr1-keyPoints[2])*64/(keyPoints[3] - keyPoints[2])) * brightness_values[curPowerState] / 255;
+  //     curBrightnessVal = sin8((ctr1-keyPoints[2])*64/(keyPoints[3] - keyPoints[2])) * brightness_values[curPowerState] / 255;
   //   } 
 
   //   else if (ctr1 >= keyPoints[3] && ctr1 < keyPoints[4]) {
-  //     curBrightness = sin8((ctr1-keyPoints[3])*64/(keyPoints[4] - keyPoints[3])+64) * brightness_values[curPowerState] / 255;
+  //     curBrightnessVal = sin8((ctr1-keyPoints[3])*64/(keyPoints[4] - keyPoints[3])+64) * brightness_values[curPowerState] / 255;
   //   } 
   //   else if (ctr1 >= keyPoints[4]) {
-  //     curBrightness = 0;
+  //     curBrightnessVal = 0;
   //   }
   //   ctr1++;
   //   ctr1 = ctr1 > keyPoints[5] - 1? 0:ctr1;
   // }
   // for (int i=NUM_LEDS/2;i<NUM_LEDS;i++) {
-  //   leds[i] = CHSV(hue_values[curHue], curSaturation, curBrightness);
+  //   leds[i] = CHSV(hue_values[curHueVal], curSaturationVal, curBrightnessVal);
   // }
 }
 
@@ -200,28 +245,28 @@ void chasingLEDs() {
    * shift the LED pixels every 100 ms
    * 4 pixels red, 4 pixels green, 4 pixels blue 
   */ 
-  curBrightness = brightness_values[curBrightness];
+  curBrightnessVal = brightness_values[curBrightness];
   if (millis() - flashCycleTimer >= 100) {
     flashCycleTimer = millis();
     if (ctr1 < 4) {
-      curHue = hue_values[0];
+      curHueVal = hue_values[0];
     }
     else if (ctr1 >= 4 && ctr1 < 8) {
-      curHue = hue_values[4];
+      curHueVal = hue_values[4];
     }
     else if (ctr1 >= 8) {
-      curHue = hue_values[7];
+      curHueVal = hue_values[7];
     }
     // // shift LEDs with the flow of data
     // for (int i=NUM_LEDS - 1;i>0;i--) {
     //   leds[i] = leds[i-1];
     // }
-    // leds[0] = CHSV(curHue, curSaturation, curBrightness);
+    // leds[0] = CHSV(curHueVal, curSaturationVal, curBrightnessVal);
     // shift LEDs against the flow of data
     for (int i=0;i<NUM_LEDS - 1;i++) {
       leds[i] = leds[i+1];
     }
-    leds[NUM_LEDS - 1] = CHSV(curHue, curSaturation, curBrightness);
+    leds[NUM_LEDS - 1] = CHSV(curHueVal, curSaturationVal, curBrightnessVal);
     ctr1++;
     ctr1 = ctr1 > 11? 0:ctr1;
     Serial.print("ctr1=");
@@ -231,13 +276,13 @@ void chasingLEDs() {
 
 void ledLoop() {
 
-  if (curHue == 10) curSaturation = 0;
-  else curSaturation = 255;
+  if (curHueVal == 10) curSaturationVal = 0;
+  else curSaturationVal = 255;
 
   // for (int i=0;i<NUM_LEDS/2;i++) {
   //   leds[i] = CHSV(0, 0, brightness_values[curPowerState]);
   // }
-  // if (curModeState == NORMPLUSRGB) {
+  // if (curMode == MODE_NORMPLUSRGB) {
   //   
   // } else {
   //   for (int i=NUM_LEDS/2;i<NUM_LEDS;i++) {
@@ -245,6 +290,7 @@ void ledLoop() {
   //   }
   // }
   
+  singleFlashLEDs();
 
   FastLED.show();
 }
