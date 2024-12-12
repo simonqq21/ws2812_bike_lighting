@@ -2,7 +2,7 @@
 #define INTERRUPT_BUTTON_H
 #include <Arduino.h>
 
-#define DEBOUNCE_DELAY 60
+#define DEBOUNCE_DELAY 20
 #define MULTICLICK_DURATION 500
 #define LONGCLICK_DURATION 1000
 /**

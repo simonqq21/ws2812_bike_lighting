@@ -35,17 +35,18 @@
  * 
  * 0.4 
  * Implement a standard for storing the colors, modes, brightness
- * Incorporate the ability to have multiple colors
+ * Incorporate the ability to have multiple colors for all modes.
  * 
+ * 0.5
  * Implement basic button control.
  * Control brightness, rgb enable, color, and mode.
- * 
- * 
- * 
- * Proposed RGB control UI:
- * 10 single colors, 10 double colors, 10 triple colors, 10 quad colors, 1 rainbow (10 * (1+2+3+4)+10 = 110 bytes)
+ * Proposed RGB control UI with one button:
+ * 10 single colors
  * constant, single flash, double flash, single fade, and double fade
- * special modes 
+ * single click - switch brightness between off, low, med, and high
+ * double click - switch between norm and normplusrgb
+ * single long press - cycle through colors
+ * double long press - cycle between constant, single flash, double flash, single fade, and double fade
  * 
  */
 
@@ -105,11 +106,16 @@ const byte brightness_values[] = {0, 80, 160, 250};
  *      RGBMODE_SINGLEFADE, RGBMODE_DOUBLEFADE, RGBMODE_FORWARDSHIFT, 
  *      RGBMODE_REVERSESHIFT
  */ 
-byte curMode = MODE_NORMPLUSRGB;
-byte curBrightness = PWR_LOW;
-byte curColors[10];
-int lenColors = 3;
-byte curRGBMode;
+
+struct mainConfig {
+  byte curMode = MODE_NORMPLUSRGB;
+  byte curBrightness = PWR_LOW;
+  byte curColors[10];
+  int lenColors = 3;
+  byte curRGBMode;
+};
+
+mainConfig configuration;
 
 /**
  * current hue and saturation variables
@@ -124,17 +130,17 @@ void btn1_change_func() {
 }
 
 void btn1_1shortclick_func() {
-  curBrightness++;
-  if (curBrightness > PWR_HIGH) curBrightness = PWR_OFF;
+  configuration.curBrightness++;
+  if (configuration.curBrightness > PWR_HIGH) configuration.curBrightness = PWR_OFF;
   Serial.print("curBrightness = ");
-  Serial.println(curBrightness);
+  Serial.println(configuration.curBrightness);
 }
 
 void btn1_2shortclicks_func() {
-  curMode++;
-  if (curMode > MODE_NORMPLUSRGB) curMode = 0;
+  configuration.curMode++;
+  if (configuration.curMode > MODE_NORMPLUSRGB) configuration.curMode = 0;
   Serial.print("curMode = ");
-  Serial.println(curMode);
+  Serial.println(configuration.curMode);
 }
 
 void btn1_1longpress_func() {
@@ -161,13 +167,13 @@ void singleFlashLEDs() {
   keyPoints[2] = totalPeriodLengthinMillis/updatePeriodinMillis;
   if (millis() - flashCycleTimer >= updatePeriodinMillis) {
     flashCycleTimer = millis();
-    if (ctr1 < keyPoints[1]) curBrightnessVal = brightness_values[curBrightness];
+    if (ctr1 < keyPoints[1]) curBrightnessVal = brightness_values[configuration.curBrightness];
     else curBrightnessVal = 0;
     ctr1++;
     if (ctr1 > keyPoints[2] - 1) {
       curHueIndex++;
-      curHueIndex = curHueIndex > lenColors-1? 0: curHueIndex;
-      curHueVal = hue_values[curColors[curHueIndex]];
+      curHueIndex = curHueIndex > configuration.lenColors-1? 0: curHueIndex;
+      curHueVal = hue_values[configuration.curColors[curHueIndex]];
     }
     ctr1 = ctr1 > keyPoints[2] - 1? 0:ctr1;
     for (int i=NUM_LEDS/2;i<NUM_LEDS;i++) {
@@ -186,13 +192,13 @@ void doubleFlashLEDs() {
   keyPoints[4] = totalPeriodLengthinMillis/updatePeriodinMillis;
   if (millis() - flashCycleTimer >= updatePeriodinMillis) {
     flashCycleTimer = millis();
-    if (ctr1 < keyPoints[1] || ctr1 >= keyPoints[2] && ctr1 < keyPoints[3]) curBrightnessVal = brightness_values[curBrightness];
+    if ((ctr1 < keyPoints[1]) || (ctr1 >= keyPoints[2] && ctr1 < keyPoints[3])) curBrightnessVal = brightness_values[configuration.curBrightness];
     else curBrightnessVal = 0;
     ctr1++;
     if (ctr1 > keyPoints[4] - 1) {
       curHueIndex++;
-      curHueIndex = curHueIndex > lenColors-1? 0: curHueIndex;
-      curHueVal = hue_values[curColors[curHueIndex]];
+      curHueIndex = curHueIndex > configuration.lenColors-1? 0: curHueIndex;
+      curHueVal = hue_values[configuration.curColors[curHueIndex]];
     }
     ctr1 = ctr1 > keyPoints[4] - 1? 0:ctr1;
     for (int i=NUM_LEDS/2;i<NUM_LEDS;i++) {
@@ -213,10 +219,10 @@ void singleFadeLEDs() {
   if (millis() - flashCycleTimer >= updatePeriodinMillis) {
     flashCycleTimer = millis();
     if (ctr1 < keyPoints[1]) {
-      curBrightnessVal = sin8((ctr1-keyPoints[0])*64/(keyPoints[1] - keyPoints[0])) * brightness_values[curBrightness] / 255;
+      curBrightnessVal = sin8((ctr1-keyPoints[0])*64/(keyPoints[1] - keyPoints[0])) * brightness_values[configuration.curBrightness] / 255;
     } 
     else if (ctr1 >= keyPoints[1] && ctr1 < keyPoints[2]) {
-      curBrightnessVal = sin8((ctr1-keyPoints[1])*64/(keyPoints[2] - keyPoints[1])+64) * brightness_values[curBrightness] / 255;
+      curBrightnessVal = sin8((ctr1-keyPoints[1])*64/(keyPoints[2] - keyPoints[1])+64) * brightness_values[configuration.curBrightness] / 255;
     } 
     else if (ctr1 >= keyPoints[2]) {
       curBrightnessVal = 0;
@@ -224,8 +230,8 @@ void singleFadeLEDs() {
     ctr1++;
     if (ctr1 > keyPoints[3] - 1) {
       curHueIndex++;
-      curHueIndex = curHueIndex > lenColors-1? 0: curHueIndex;
-      curHueVal = hue_values[curColors[curHueIndex]];
+      curHueIndex = curHueIndex > configuration.lenColors-1? 0: curHueIndex;
+      curHueVal = hue_values[configuration.curColors[curHueIndex]];
     }
     ctr1 = ctr1 > keyPoints[3] - 1? 0:ctr1;
     for (int i=NUM_LEDS/2;i<NUM_LEDS;i++) {
@@ -248,19 +254,19 @@ void doubleFadeLEDs() {
   if (millis() - flashCycleTimer >= updatePeriodinMillis) {
     flashCycleTimer = millis();
     if (ctr1 < keyPoints[1]) {
-      curBrightnessVal = sin8((ctr1-keyPoints[0])*64/(keyPoints[1] - keyPoints[0])) * brightness_values[curBrightness] / 255;
+      curBrightnessVal = sin8((ctr1-keyPoints[0])*64/(keyPoints[1] - keyPoints[0])) * brightness_values[configuration.curBrightness] / 255;
     } 
 
     else if (ctr1 >= keyPoints[1] && ctr1 < keyPoints[2]) {
-      curBrightnessVal = sin8((ctr1-keyPoints[1])*64/(keyPoints[2] - keyPoints[1])+64) * brightness_values[curBrightness] / 255;
+      curBrightnessVal = sin8((ctr1-keyPoints[1])*64/(keyPoints[2] - keyPoints[1])+64) * brightness_values[configuration.curBrightness] / 255;
     } 
 
     if (ctr1 >= keyPoints[2] && ctr1 < keyPoints[3]) {
-      curBrightnessVal = sin8((ctr1-keyPoints[2])*64/(keyPoints[3] - keyPoints[2])) * brightness_values[curBrightness] / 255;
+      curBrightnessVal = sin8((ctr1-keyPoints[2])*64/(keyPoints[3] - keyPoints[2])) * brightness_values[configuration.curBrightness] / 255;
     } 
 
     else if (ctr1 >= keyPoints[3] && ctr1 < keyPoints[4]) {
-      curBrightnessVal = sin8((ctr1-keyPoints[3])*64/(keyPoints[4] - keyPoints[3])+64) * brightness_values[curBrightness] / 255;
+      curBrightnessVal = sin8((ctr1-keyPoints[3])*64/(keyPoints[4] - keyPoints[3])+64) * brightness_values[configuration.curBrightness] / 255;
     } 
     else if (ctr1 >= keyPoints[4]) {
       curBrightnessVal = 0;
@@ -268,8 +274,8 @@ void doubleFadeLEDs() {
     ctr1++;
     if (ctr1 > keyPoints[5] - 1) {
       curHueIndex++;
-      curHueIndex = curHueIndex > lenColors-1? 0: curHueIndex;
-      curHueVal = hue_values[curColors[curHueIndex]];
+      curHueIndex = curHueIndex > configuration.lenColors-1? 0: curHueIndex;
+      curHueVal = hue_values[configuration.curColors[curHueIndex]];
     }
     ctr1 = ctr1 > keyPoints[5] - 1? 0:ctr1;
   }
@@ -289,15 +295,15 @@ void chasingLEDs() {
   keyPoints[1] = keyPoints[0] + 400/updatePeriodinMillis;
   keyPoints[2] = keyPoints[1] + 400/updatePeriodinMillis;
   keyPoints[3] = keyPoints[2] + 400/updatePeriodinMillis;
-  curBrightnessVal = brightness_values[curBrightness];
+  curBrightnessVal = brightness_values[configuration.curBrightness];
   if (millis() - flashCycleTimer >= updatePeriodinMillis) {
     flashCycleTimer = millis();
     ctr1++;
     if (!(ctr1 % 4)) {
       curHueIndex++;
     }
-    curHueIndex = curHueIndex > (lenColors - 1)?0: curHueIndex;
-    curHueVal = hue_values[curColors[curHueIndex]];
+    curHueIndex = curHueIndex > (configuration.lenColors - 1)?0: curHueIndex;
+    curHueVal = hue_values[configuration.curColors[curHueIndex]];
 
     // // shift LEDs with the flow of data
     // for (int i=NUM_LEDS - 1;i>0;i--) {
@@ -364,9 +370,9 @@ void setup() {
   // curColors[0] = 4;
   // lenColors = 1;
 
-  curColors[0] = 0;
-  curColors[1] = 7;
-  lenColors = 2;
+  configuration.curColors[0] = 0;
+  configuration.curColors[1] = 7;
+  configuration.lenColors = 2;
 }
 
 void loop() {
