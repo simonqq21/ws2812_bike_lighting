@@ -43,12 +43,18 @@
  * single long press - cycle through colors
  * double long press - cycle between constant, single flash, double flash, single fade, and double fade
  * 
+ * 0.6
+ * Implement automatic saving to the EEPROM
+ * Save current configuration to the EEPROM 60 seconds after the settings are last changed.
+ * 
  */
 
 #include <Arduino.h>
 #include "buttonlib2.h"
 #include "EEPROM.h"
 #include "FastLED.h"
+
+// #define ESP32
 
 /** 
  * light power states
@@ -123,6 +129,7 @@ struct ledsConfig {
   byte curColors[10];
   int lenColors;
   byte curRGBMode;
+  byte checkByte;
 };
 
 // 1 button
@@ -159,6 +166,10 @@ unsigned long flashCycleTimer;
 unsigned int ctr1;
 
 ledsConfig configuration;
+unsigned long lastTimeConfigChanged;
+bool configChanged;
+const unsigned long AUTOSAVE_DELAY = 20000;
+const int configAddr = 0x00;
 
 /**
  * current hue and saturation variables to be written to LEDs
@@ -174,9 +185,42 @@ void btn1_change_func() {
 }
 
 /**
+ * Load LED config from EEPROM
+ */
+void loadConfiguration() {
+  Serial.println("load");
+  EEPROM.get(configAddr, configuration);
+}
+
+/**
+ * save LED config to EEPROM
+ */
+void saveConfiguration() {
+  Serial.println("save");
+  EEPROM.put(configAddr, configuration);
+}
+
+void activateAutoSave() {
+  lastTimeConfigChanged = millis();
+  configChanged = true;
+}
+
+/**
+ * loop function to check for changes and autosave 
+ */
+void checkAutoSaveToEEPROM() {
+  if (millis() - lastTimeConfigChanged > AUTOSAVE_DELAY && configChanged) {
+    configChanged = false;
+    Serial.println("autosave");
+    saveConfiguration();
+  }
+}
+
+/**
  * single click - switch brightness between off, low, med, and high
  */
 void btn1_1shortclick_func() {
+  activateAutoSave();
   configuration.curBrightness++;
   if (configuration.curBrightness > PWR_HIGH) configuration.curBrightness = PWR_OFF;
   Serial.print("curBrightness = ");
@@ -187,6 +231,7 @@ void btn1_1shortclick_func() {
  * double click - switch operation mode between norm and normplusrgb
  */
 void btn1_2shortclicks_func() {
+  activateAutoSave();
   configuration.curMode++;
   if (configuration.curMode > MODE_NORMPLUSRGB) configuration.curMode = 0;
   Serial.print("curMode = ");
@@ -197,6 +242,7 @@ void btn1_2shortclicks_func() {
  * single long press - cycle through colors
  */
 void btn1_1longpress_func() {
+  activateAutoSave();
   configuration.lenColors = 1;
   configuration.curColors[0]++;
   if (configuration.curColors[0] > WHITE_HUE_INDEX) configuration.curColors[0] = 0;
@@ -208,6 +254,7 @@ void btn1_1longpress_func() {
  * double long press - cycle between constant, single flash, double flash, single fade, and double fade
  */
 void btn1_2longpress_func() {
+  activateAutoSave();
   configuration.curRGBMode++;
   if (configuration.curRGBMode > 6) configuration.curRGBMode = 0;
   Serial.print("configuration.curRGBMode = ");
@@ -472,6 +519,9 @@ void ledLoop() {
 }
 
 void setup() {
+  #ifdef ESP32
+  EEPROM.begin(sizeof(ledsConfig));
+  #endif
   Serial.begin(115200);
   Serial.println("RESET");
   btn1.begin(btn1_change_func);
@@ -487,8 +537,9 @@ void setup() {
   FastLED.addLeds<LED_TYPE, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection( TypicalLEDStrip );
   FastLED.setBrightness(  BRIGHTNESS );
   
-  configuration.curColors[0] = 0;
-  configuration.lenColors = 1;
+  loadConfiguration();
+  // configuration.curColors[0] = 0;
+  // configuration.lenColors = 1;
 
   // configuration.curColors[0] = 0;
   // configuration.curColors[1] = 1;
@@ -503,9 +554,17 @@ void setup() {
   // configuration.curColors[1] = 7;
   // configuration.lenColors = 2;
 
-  configuration.curMode = MODE_NORMPLUSRGB;
-  configuration.curRGBMode = RGBMODE_CONSTANT;
-  configuration.curBrightness = PWR_LOW;
+  // configuration.curMode = MODE_NORMPLUSRGB;
+  // configuration.curRGBMode = RGBMODE_CONSTANT;
+  // configuration.curBrightness = PWR_LOW;
+
+  // check the checkByte in the config to see if the data is valid
+  Serial.print("cb=");
+  Serial.println(configuration.checkByte);
+  if (configuration.checkByte != 0x0F) {
+    configuration.checkByte = 0x0F;
+    saveConfiguration();
+  }
 }
 
 void loop() {
@@ -514,5 +573,6 @@ void loop() {
    */
   btn1.loop();
   ledLoop();
+  checkAutoSaveToEEPROM();
 }
 
