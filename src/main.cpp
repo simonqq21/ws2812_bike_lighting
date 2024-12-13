@@ -118,7 +118,7 @@ struct mainConfig {
   byte curMode = MODE_NORMPLUSRGB;
   byte curBrightness = PWR_LOW;
   byte curColors[10];
-  int lenColors = 3;
+  int lenColors = 1;
   byte curRGBMode = RGBMODE_FORWARDSHIFT;
 };
 
@@ -203,6 +203,7 @@ void singleFlashLEDs() {
       curHueIndex++;
       curHueIndex = curHueIndex > configuration.lenColors-1? 0: curHueIndex;
       curHueVal = hue_values[configuration.curColors[curHueIndex]];
+      curSaturationVal = configuration.curColors[curHueIndex] == white_hue_index? 0 : 255;
     }
     ctr1 = ctr1 > keyPoints[2] - 1? 0:ctr1 + 1;
     for (int i=0;i<NUM_LEDS/2;i++) {
@@ -227,6 +228,7 @@ void doubleFlashLEDs() {
       curHueIndex++;
       curHueIndex = curHueIndex > configuration.lenColors-1? 0: curHueIndex;
       curHueVal = hue_values[configuration.curColors[curHueIndex]];
+      curSaturationVal = configuration.curColors[curHueIndex] == white_hue_index? 0 : 255;
     }
     ctr1 = ctr1 > keyPoints[4] - 1? 0:ctr1 + 1;
     for (int i=0;i<NUM_LEDS/2;i++) {
@@ -259,6 +261,7 @@ void singleFadeLEDs() {
       curHueIndex++;
       curHueIndex = curHueIndex > configuration.lenColors-1? 0: curHueIndex;
       curHueVal = hue_values[configuration.curColors[curHueIndex]];
+      curSaturationVal = configuration.curColors[curHueIndex] == white_hue_index? 0 : 255;
     }
     ctr1 = ctr1 > keyPoints[3] - 1? 0:ctr1 + 1;
     for (int i=0;i<NUM_LEDS/2;i++) {
@@ -299,6 +302,7 @@ void doubleFadeLEDs() {
       curHueIndex++;
       curHueIndex = curHueIndex > configuration.lenColors-1? 0: curHueIndex;
       curHueVal = hue_values[configuration.curColors[curHueIndex]];
+      curSaturationVal = configuration.curColors[curHueIndex] == white_hue_index? 0 : 255;
     }
     ctr1 = ctr1 > keyPoints[5] - 1? 0:ctr1 + 1;
     for (int i=0;i<NUM_LEDS/2;i++) {
@@ -326,11 +330,13 @@ void chasingLEDs(bool forward=true) {
       curHueIndex++;
     }
     // chase single colors with black
-    if (configuration.lenColors <= 1) {
-      configuration.lenColors++;
+    if (configuration.lenColors <= 1 ) {
       configuration.curColors[1] = black_hue_index;
+      curHueIndex = curHueIndex > 1 ?0: curHueIndex;
     }
-    curHueIndex = curHueIndex > (configuration.lenColors - 1)?0: curHueIndex;
+    else {
+      curHueIndex = curHueIndex > (configuration.lenColors - 1)?0: curHueIndex;
+    }
     curHueVal = hue_values[configuration.curColors[curHueIndex]];
     if (configuration.curColors[curHueIndex] == black_hue_index) {
       curBrightnessVal = 0;
@@ -358,7 +364,6 @@ void chasingLEDs(bool forward=true) {
       }
       rgbLeds[NUM_LEDS/2 - 1] = CHSV(curHueVal, curSaturationVal, curBrightnessVal);
     }
-    
   }
 }
 
@@ -409,21 +414,26 @@ void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
   FastLED.addLeds<LED_TYPE, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection( TypicalLEDStrip );
   FastLED.setBrightness(  BRIGHTNESS );
-
-  // curColors[0] = 0;
-  // curColors[1] = 1;
-  // curColors[2] = 2;
-  // curColors[3] = 4;
-  // curColors[4] = 7;
-  // curColors[5] = 8;
-  // lenColors = 6;
-
+  
   // configuration.curColors[0] = 0;
   // configuration.lenColors = 1;
 
   configuration.curColors[0] = 0;
-  configuration.curColors[1] = 7;
-  configuration.lenColors = 2;
+  configuration.curColors[1] = 1;
+  configuration.curColors[2] = 2;
+  configuration.curColors[3] = 4;
+  configuration.curColors[4] = 7;
+  configuration.curColors[5] = 8;
+  configuration.curColors[6] = 10;
+  configuration.lenColors = 7;
+
+  // configuration.curColors[0] = 0;
+  // configuration.curColors[1] = 7;
+  // configuration.lenColors = 2;
+
+  configuration.curMode = MODE_NORMPLUSRGB;
+  configuration.curRGBMode = RGBMODE_DOUBLEFLASH;
+  configuration.curBrightness = PWR_LOW;
 }
 
 void loop() {
