@@ -47,6 +47,9 @@
  * Implement automatic saving to the EEPROM
  * Save current configuration to the EEPROM 60 seconds after the settings are last changed.
  * 
+ * 1.0 - version 1 complete
+ * 
+ * 
  */
 
 #include <Arduino.h>
