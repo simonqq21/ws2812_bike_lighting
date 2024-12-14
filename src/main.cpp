@@ -49,7 +49,23 @@
  * 
  * 1.0 - version 1 complete
  * 
- * 
+ * Proposed complete features:
+ *    ESP32 will be used because of it has built-in BLE.
+ *    Hardware power switch
+ *    3x 18650 battery
+ *    2 boost converters to boost from battery voltage to 5V to power MCU and LED strips 
+ *    Control via single pushbutton and mobile app over bluetooth
+ *    single push button will be used to:
+ *      power on/off, 
+ *      change brightness,
+ *      change operating mode, 
+ *      cycle through 8 presets
+ *    Mobile app control over BLE will be used to:
+ *      perform all operations of the pushbutton, and 
+ *      change RGB modes for each of the 8 presets
+ *      
+ *    LDR for automatic on-off and three level brightness adjustment
+ *    
  */
 
 #include <Arduino.h>
