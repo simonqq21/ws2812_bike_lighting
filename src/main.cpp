@@ -68,12 +68,19 @@
  *    
  */
 
+// #define AVR
+#define ESP32
+
 #include <Arduino.h>
 #include "buttonlib2.h"
-#include "EEPROM.h"
 #include "FastLED.h"
-
-// #define ESP32
+#ifdef AVR
+  #include "EEPROM.h"
+#endif
+#ifdef ESP32
+  #include <Preferences.h>
+  Preferences prefs;
+#endif
 
 /** 
  * light power states
@@ -151,10 +158,18 @@ struct ledsConfig {
   byte checkByte;
 };
 
-// 1 button
-const int BTN1_PIN = 2;
-// three strings of LEDs: front, side, and rear
-const int LED_PIN = 4;
+#ifdef AVR
+  // 1 button
+  const int BTN1_PIN = 2;
+  // three strings of LEDs: front, side, and rear
+  const int LED_PIN = 4;
+#endif 
+#ifdef ESP32
+  // 1 button
+  const int BTN1_PIN = 18;
+  // three strings of LEDs: front, side, and rear
+  const int LED_PIN = 2;
+#endif 
 
 // control button
 InterruptButton btn1(BTN1_PIN);
@@ -184,7 +199,8 @@ unsigned long flashCycleTimer;
  */
 unsigned int ctr1;
 
-ledsConfig configuration;
+ledsConfig* configuration;
+byte buff[sizeof(ledsConfig)];
 unsigned long lastTimeConfigChanged;
 bool configChanged;
 const unsigned long AUTOSAVE_DELAY = 20000;
@@ -203,12 +219,36 @@ void btn1_change_func() {
   btn1.changeInterruptFunc();
 }
 
+void printConfiguration() {
+  #ifdef ESP32
+    Serial.printf("LED configuration:\n");
+    Serial.printf("configuration->curmode=%d\n", configuration->curMode);
+    Serial.printf("configuration->curBrightness=%d\n", configuration->curBrightness);
+    Serial.printf("configuration->lenColors=%d\n", configuration->lenColors);
+    Serial.printf("configuration->curColors");
+    for (int i=0;i<configuration->lenColors;i++) {
+      Serial.printf("%d, ", configuration->curColors[i]);
+    }
+    Serial.println();
+    Serial.printf("configuration->curRGBMode=%d\n", configuration->curRGBMode);
+    Serial.printf("configuration->checkByte=%d\n", configuration->checkByte);
+  #endif
+}
+
 /**
  * Load LED config from EEPROM
  */
 void loadConfiguration() {
   Serial.println("load");
-  EEPROM.get(configAddr, configuration);
+  #ifdef AVR
+    EEPROM.get(configAddr, configuration);
+  #endif 
+  #ifdef ESP32
+    const int lCLen = prefs.getBytesLength("lC");
+    Serial.printf("lCLen = %d\n", lCLen);
+    prefs.getBytes("lC", buff, lCLen);
+    configuration = (ledsConfig *) buff;
+  #endif
 }
 
 /**
@@ -216,7 +256,12 @@ void loadConfiguration() {
  */
 void saveConfiguration() {
   Serial.println("save");
-  EEPROM.put(configAddr, configuration);
+  #ifdef AVR
+    EEPROM.put(configAddr, configuration);
+  #endif 
+  #ifdef ESP32
+    prefs.putBytes("lC", configuration, sizeof(ledsConfig));
+  #endif
 }
 
 void activateAutoSave() {
@@ -240,10 +285,11 @@ void checkAutoSaveToEEPROM() {
  */
 void btn1_1shortclick_func() {
   activateAutoSave();
-  configuration.curBrightness++;
-  if (configuration.curBrightness > PWR_HIGH) configuration.curBrightness = PWR_OFF;
+  configuration->curBrightness++;
+  // Serial.println(configuration->curBrightness > PWR_HIGH);
+  if (configuration->curBrightness > PWR_HIGH) configuration->curBrightness = PWR_OFF;
   Serial.print("curBrightness = ");
-  Serial.println(configuration.curBrightness);
+  Serial.println(configuration->curBrightness);
 }
 
 /**
@@ -251,10 +297,10 @@ void btn1_1shortclick_func() {
  */
 void btn1_2shortclicks_func() {
   activateAutoSave();
-  configuration.curMode++;
-  if (configuration.curMode > MODE_NORMPLUSRGB) configuration.curMode = 0;
+  configuration->curMode++;
+  if (configuration->curMode > MODE_NORMPLUSRGB) configuration->curMode = 0;
   Serial.print("curMode = ");
-  Serial.println(configuration.curMode);
+  Serial.println(configuration->curMode);
 }
 
 /**
@@ -262,11 +308,11 @@ void btn1_2shortclicks_func() {
  */
 void btn1_1longpress_func() {
   activateAutoSave();
-  configuration.lenColors = 1;
-  configuration.curColors[0]++;
-  if (configuration.curColors[0] > WHITE_HUE_INDEX) configuration.curColors[0] = 0;
-  Serial.print("configuration.curColors[0] = ");
-  Serial.println(configuration.curColors[0]);
+  configuration->lenColors = 1;
+  configuration->curColors[0]++;
+  if (configuration->curColors[0] > WHITE_HUE_INDEX) configuration->curColors[0] = 0;
+  Serial.print("configuration->curColors[0] = ");
+  Serial.println(configuration->curColors[0]);
 }
 
 /**
@@ -274,10 +320,10 @@ void btn1_1longpress_func() {
  */
 void btn1_2longpress_func() {
   activateAutoSave();
-  configuration.curRGBMode++;
-  if (configuration.curRGBMode > 6) configuration.curRGBMode = 0;
-  Serial.print("configuration.curRGBMode = ");
-  Serial.println(configuration.curRGBMode);
+  configuration->curRGBMode++;
+  if (configuration->curRGBMode > 6) configuration->curRGBMode = 0;
+  Serial.print("configuration->curRGBMode = ");
+  Serial.println(configuration->curRGBMode);
 }
 
 /**
@@ -285,7 +331,7 @@ void btn1_2longpress_func() {
  */
 void controlfrLEDs() {
   for (int i=0;i<NUM_LEDS/2;i++) {
-    frontLeds[i] = CHSV(WHITE_HUE, WHITE_SATURATION, BRIGHTNESS_VALUES[configuration.curBrightness]);
+    frontLeds[i] = CHSV(WHITE_HUE, WHITE_SATURATION, BRIGHTNESS_VALUES[configuration->curBrightness]);
   }
 }
 
@@ -302,9 +348,9 @@ void offLEDs() {
  * constant on RGB LEDs
  */
 void constantLEDs() {
-  curSaturationVal = configuration.curColors[0] == WHITE_HUE_INDEX? 0 : 255;
-  curHueVal = HUE_VALUES[configuration.curColors[0]];
-  curBrightnessVal = BRIGHTNESS_VALUES[configuration.curBrightness];
+  curSaturationVal = configuration->curColors[0] == WHITE_HUE_INDEX? 0 : 255;
+  curHueVal = HUE_VALUES[configuration->curColors[0]];
+  curBrightnessVal = BRIGHTNESS_VALUES[configuration->curBrightness];
   for (int i=0;i<NUM_LEDS/2;i++) {
     rgbLeds[i] = CHSV(curHueVal, curSaturationVal, curBrightnessVal);
   }
@@ -321,11 +367,11 @@ void singleFlashLEDs() {
   keyPoints[2] = totalPeriodLengthinMillis/updatePeriodinMillis;
   if (millis() - flashCycleTimer >= updatePeriodinMillis) {
     flashCycleTimer = millis();
-    if (ctr1 < keyPoints[1]) curBrightnessVal = BRIGHTNESS_VALUES[configuration.curBrightness];
+    if (ctr1 < keyPoints[1]) curBrightnessVal = BRIGHTNESS_VALUES[configuration->curBrightness];
     else curBrightnessVal = 0;
-    curHueIndex = curHueIndex > configuration.lenColors-1? 0: curHueIndex;
-    curHueVal = HUE_VALUES[configuration.curColors[curHueIndex]];
-    curSaturationVal = configuration.curColors[curHueIndex] == WHITE_HUE_INDEX? 0 : 255;
+    curHueIndex = curHueIndex > configuration->lenColors-1? 0: curHueIndex;
+    curHueVal = HUE_VALUES[configuration->curColors[curHueIndex]];
+    curSaturationVal = configuration->curColors[curHueIndex] == WHITE_HUE_INDEX? 0 : 255;
     if (ctr1 > keyPoints[2] - 1) {
       curHueIndex++;
     }
@@ -349,11 +395,11 @@ void doubleFlashLEDs() {
   keyPoints[4] = totalPeriodLengthinMillis/updatePeriodinMillis;
   if (millis() - flashCycleTimer >= updatePeriodinMillis) {
     flashCycleTimer = millis();
-    if ((ctr1 < keyPoints[1]) || (ctr1 >= keyPoints[2] && ctr1 < keyPoints[3])) curBrightnessVal = BRIGHTNESS_VALUES[configuration.curBrightness];
+    if ((ctr1 < keyPoints[1]) || (ctr1 >= keyPoints[2] && ctr1 < keyPoints[3])) curBrightnessVal = BRIGHTNESS_VALUES[configuration->curBrightness];
     else curBrightnessVal = 0;
-    curHueIndex = curHueIndex > configuration.lenColors-1? 0: curHueIndex;
-    curHueVal = HUE_VALUES[configuration.curColors[curHueIndex]];
-    curSaturationVal = configuration.curColors[curHueIndex] == WHITE_HUE_INDEX? 0 : 255;
+    curHueIndex = curHueIndex > configuration->lenColors-1? 0: curHueIndex;
+    curHueVal = HUE_VALUES[configuration->curColors[curHueIndex]];
+    curSaturationVal = configuration->curColors[curHueIndex] == WHITE_HUE_INDEX? 0 : 255;
     if (ctr1 > keyPoints[4] - 1) {
       curHueIndex++;
     }
@@ -379,17 +425,17 @@ void singleFadeLEDs() {
   if (millis() - flashCycleTimer >= updatePeriodinMillis) {
     flashCycleTimer = millis();
     if (ctr1 < keyPoints[1]) {
-      curBrightnessVal = sin8((ctr1-keyPoints[0])*64/(keyPoints[1] - keyPoints[0])) * BRIGHTNESS_VALUES[configuration.curBrightness] / 255;
+      curBrightnessVal = sin8((ctr1-keyPoints[0])*64/(keyPoints[1] - keyPoints[0])) * BRIGHTNESS_VALUES[configuration->curBrightness] / 255;
     } 
     else if (ctr1 >= keyPoints[1] && ctr1 < keyPoints[2]) {
-      curBrightnessVal = sin8((ctr1-keyPoints[1])*64/(keyPoints[2] - keyPoints[1])+64) * BRIGHTNESS_VALUES[configuration.curBrightness] / 255;
+      curBrightnessVal = sin8((ctr1-keyPoints[1])*64/(keyPoints[2] - keyPoints[1])+64) * BRIGHTNESS_VALUES[configuration->curBrightness] / 255;
     } 
     else if (ctr1 >= keyPoints[2]) {
       curBrightnessVal = 0;
     }
-    curHueIndex = curHueIndex > configuration.lenColors-1? 0: curHueIndex;
-    curHueVal = HUE_VALUES[configuration.curColors[curHueIndex]];
-    curSaturationVal = configuration.curColors[curHueIndex] == WHITE_HUE_INDEX? 0 : 255;
+    curHueIndex = curHueIndex > configuration->lenColors-1? 0: curHueIndex;
+    curHueVal = HUE_VALUES[configuration->curColors[curHueIndex]];
+    curSaturationVal = configuration->curColors[curHueIndex] == WHITE_HUE_INDEX? 0 : 255;
     if (ctr1 > keyPoints[3] - 1) {
       curHueIndex++;
     }
@@ -417,23 +463,23 @@ void doubleFadeLEDs() {
   if (millis() - flashCycleTimer >= updatePeriodinMillis) {
     flashCycleTimer = millis();
     if (ctr1 < keyPoints[1]) {
-      curBrightnessVal = sin8((ctr1-keyPoints[0])*64/(keyPoints[1] - keyPoints[0])) * BRIGHTNESS_VALUES[configuration.curBrightness] / 255;
+      curBrightnessVal = sin8((ctr1-keyPoints[0])*64/(keyPoints[1] - keyPoints[0])) * BRIGHTNESS_VALUES[configuration->curBrightness] / 255;
     }
     else if (ctr1 >= keyPoints[1] && ctr1 < keyPoints[2]) {
-      curBrightnessVal = sin8((ctr1-keyPoints[1])*64/(keyPoints[2] - keyPoints[1])+64) * BRIGHTNESS_VALUES[configuration.curBrightness] / 255;
+      curBrightnessVal = sin8((ctr1-keyPoints[1])*64/(keyPoints[2] - keyPoints[1])+64) * BRIGHTNESS_VALUES[configuration->curBrightness] / 255;
     } 
     if (ctr1 >= keyPoints[2] && ctr1 < keyPoints[3]) {
-      curBrightnessVal = sin8((ctr1-keyPoints[2])*64/(keyPoints[3] - keyPoints[2])) * BRIGHTNESS_VALUES[configuration.curBrightness] / 255;
+      curBrightnessVal = sin8((ctr1-keyPoints[2])*64/(keyPoints[3] - keyPoints[2])) * BRIGHTNESS_VALUES[configuration->curBrightness] / 255;
     } 
     else if (ctr1 >= keyPoints[3] && ctr1 < keyPoints[4]) {
-      curBrightnessVal = sin8((ctr1-keyPoints[3])*64/(keyPoints[4] - keyPoints[3])+64) * BRIGHTNESS_VALUES[configuration.curBrightness] / 255;
+      curBrightnessVal = sin8((ctr1-keyPoints[3])*64/(keyPoints[4] - keyPoints[3])+64) * BRIGHTNESS_VALUES[configuration->curBrightness] / 255;
     } 
     else if (ctr1 >= keyPoints[4]) {
       curBrightnessVal = 0;
     }
-    curHueIndex = curHueIndex > configuration.lenColors-1? 0: curHueIndex;
-    curHueVal = HUE_VALUES[configuration.curColors[curHueIndex]];
-    curSaturationVal = configuration.curColors[curHueIndex] == WHITE_HUE_INDEX? 0 : 255;
+    curHueIndex = curHueIndex > configuration->lenColors-1? 0: curHueIndex;
+    curHueVal = HUE_VALUES[configuration->curColors[curHueIndex]];
+    curSaturationVal = configuration->curColors[curHueIndex] == WHITE_HUE_INDEX? 0 : 255;
     if (ctr1 > keyPoints[5] - 1) {
       curHueIndex++;
     }
@@ -466,23 +512,23 @@ void shiftLEDs(bool forward=true) {
       curHueIndex++;
     }
     // chase single colors with black
-    if (configuration.lenColors <= 1 ) {
-      configuration.curColors[1] = BLACK_HUE_INDEX;
+    if (configuration->lenColors <= 1 ) {
+      configuration->curColors[1] = BLACK_HUE_INDEX;
       curHueIndex = curHueIndex > 1 ?0: curHueIndex;
     }
     else {
-      curHueIndex = curHueIndex > (configuration.lenColors - 1)?0: curHueIndex;
+      curHueIndex = curHueIndex > (configuration->lenColors - 1)?0: curHueIndex;
     }
-    curHueVal = HUE_VALUES[configuration.curColors[curHueIndex]];
-    if (configuration.curColors[curHueIndex] == BLACK_HUE_INDEX) {
+    curHueVal = HUE_VALUES[configuration->curColors[curHueIndex]];
+    if (configuration->curColors[curHueIndex] == BLACK_HUE_INDEX) {
       curBrightnessVal = 0;
     }
-    else if (configuration.curColors[curHueIndex] == WHITE_HUE_INDEX) {
-      curBrightnessVal = BRIGHTNESS_VALUES[configuration.curBrightness];
+    else if (configuration->curColors[curHueIndex] == WHITE_HUE_INDEX) {
+      curBrightnessVal = BRIGHTNESS_VALUES[configuration->curBrightness];
       curSaturationVal = 0;
     }
     else {
-      curBrightnessVal = BRIGHTNESS_VALUES[configuration.curBrightness];
+      curBrightnessVal = BRIGHTNESS_VALUES[configuration->curBrightness];
       curSaturationVal = 255;
     }
 
@@ -508,8 +554,8 @@ void shiftLEDs(bool forward=true) {
  */
 void ledLoop() {
   controlfrLEDs();
-  if (configuration.curMode == MODE_NORMPLUSRGB) {
-    switch (configuration.curRGBMode) {
+  if (configuration->curMode == MODE_NORMPLUSRGB) {
+    switch (configuration->curRGBMode) {
       case RGBMODE_SINGLEFLASH:
         singleFlashLEDs();
         break;
@@ -539,10 +585,11 @@ void ledLoop() {
 
 void setup() {
   #ifdef ESP32
-  EEPROM.begin(sizeof(ledsConfig));
+    prefs.begin("lC");
   #endif
   Serial.begin(115200);
   Serial.println("RESET");
+  configuration = (ledsConfig *) buff;
   btn1.begin(btn1_change_func);
   // single click - cycle between off, low, medium, and high
   btn1.set1ShortPressFunc(btn1_1shortclick_func);
@@ -555,34 +602,37 @@ void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
   FastLED.addLeds<LED_TYPE, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection( TypicalLEDStrip );
   FastLED.setBrightness(  BRIGHTNESS );
-  
+  // printConfiguration();
   loadConfiguration();
-  // configuration.curColors[0] = 0;
-  // configuration.lenColors = 1;
+  // printConfiguration();
 
-  // configuration.curColors[0] = 0;
-  // configuration.curColors[1] = 1;
-  // configuration.curColors[2] = 2;
-  // configuration.curColors[3] = 4;
-  // configuration.curColors[4] = 7;
-  // configuration.curColors[5] = 8;
-  // configuration.curColors[6] = 10;
-  // configuration.lenColors = 7;
-
-  // configuration.curColors[0] = 0;
-  // configuration.curColors[1] = 7;
-  // configuration.lenColors = 2;
-
-  // configuration.curMode = MODE_NORMPLUSRGB;
-  // configuration.curRGBMode = RGBMODE_CONSTANT;
-  // configuration.curBrightness = PWR_LOW;
-
+ 
+  printConfiguration();
   // check the checkByte in the config to see if the data is valid
   Serial.print("cb=");
-  Serial.println(configuration.checkByte);
-  if (configuration.checkByte != 0x0F) {
-    configuration.checkByte = 0x0F;
+  Serial.println(configuration->checkByte);
+  if (configuration->checkByte != 0x0F) {
+    configuration->checkByte = 0x0F;
+    // configuration->curColors[0] = 0;
+    // configuration->curColors[1] = 1;
+    // configuration->curColors[2] = 2;
+    // configuration->curColors[3] = 4;
+    // configuration->curColors[4] = 7;
+    // configuration->curColors[5] = 8;
+    // configuration->curColors[6] = 10;
+    // configuration->lenColors = 7;
+
+    // configuration->curColors[0] = 0;
+    // configuration->curColors[1] = 7;
+    // configuration->lenColors = 2;
+    configuration->curColors[0] = 0;
+    configuration->lenColors = 1;
+    configuration->curMode = MODE_NORMPLUSRGB;
+    configuration->curRGBMode = RGBMODE_SINGLEFADE;
+    configuration->curBrightness = PWR_LOW;
+
     saveConfiguration();
+    printConfiguration();
   }
 }
 
