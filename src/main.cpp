@@ -200,7 +200,7 @@ unsigned long flashCycleTimer;
 unsigned int ctr1;
 
 ledsConfig* configuration;
-byte buff[sizeof(ledsConfig)];
+// byte buff[sizeof(ledsConfig)];
 unsigned long lastTimeConfigChanged;
 bool configChanged;
 const unsigned long AUTOSAVE_DELAY = 20000;
@@ -246,8 +246,8 @@ void loadConfiguration() {
   #ifdef ESP32
     const int lCLen = prefs.getBytesLength("lC");
     Serial.printf("lCLen = %d\n", lCLen);
-    prefs.getBytes("lC", buff, lCLen);
-    configuration = (ledsConfig *) buff;
+    prefs.getBytes("lC", configuration, lCLen);
+    // configuration = (ledsConfig *) buff;
   #endif
 }
 
@@ -589,7 +589,8 @@ void setup() {
   #endif
   Serial.begin(115200);
   Serial.println("RESET");
-  configuration = (ledsConfig *) buff;
+  // configuration = (ledsConfig *) buff;
+  configuration = (ledsConfig*) malloc(sizeof(ledsConfig));
   btn1.begin(btn1_change_func);
   // single click - cycle between off, low, medium, and high
   btn1.set1ShortPressFunc(btn1_1shortclick_func);
